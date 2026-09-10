@@ -4,12 +4,6 @@ import (
 	"errors"
 )
 
-type Account struct {
-	ID      int
-	Owner   string
-	Balance float64
-}
-
 type AccountStore struct {
 	accounts map[int]Account
 }
