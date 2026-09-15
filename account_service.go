@@ -33,6 +33,23 @@ func (store *AccountStore) UpdateAccount(account Account) error {
 	return nil
 }
 
+func (store *AccountStore) UpdateAccounts(accountFrom, accountTo Account) error {
+
+	_, okFrom := store.accounts[accountFrom.ID]
+	if !okFrom {
+		return errors.New("account doesn't exist")
+	}
+	_, okTo := store.accounts[accountTo.ID]
+	if !okTo {
+		return errors.New("account doesn't exist")
+	}
+
+	store.accounts[accountFrom.ID] = accountFrom
+	store.accounts[accountTo.ID] = accountTo
+	return nil
+
+}
+
 // UPDATE
 
 // DEPOSIT
@@ -76,3 +93,37 @@ func (service *AccountService) Withdraw(accountID int, amount float64) error {
 }
 
 // WITHDRAW
+
+// TRANSFER //
+
+func (service *AccountService) Transfer(fromAccountID, toAccountID int, amount float64) error {
+
+	if fromAccountID == toAccountID {
+		return errors.New("The same accounts")
+	}
+
+	accountFrom, err := service.store.GetAccount(fromAccountID)
+	if err != nil {
+		return err
+	}
+	accountTo, err := service.store.GetAccount(toAccountID)
+	if err != nil {
+		return err
+	}
+
+	if err := accountFrom.Withdraw(amount); err != nil {
+		return err
+	}
+
+	if err := accountTo.Deposit(amount); err != nil {
+		return err
+	}
+
+	if err := service.store.UpdateAccounts(accountFrom, accountTo); err != nil {
+		return err
+	}
+	return nil
+
+}
+
+// TRANSFER //

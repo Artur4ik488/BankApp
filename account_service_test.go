@@ -167,3 +167,61 @@ func TestAccountDoesNotExistForWithdraw(t *testing.T) {
 }
 
 // WITHDRAW TESTS //
+
+// TRANSFER TESTS //
+
+func TestSuccessfulAccountTransfer(t *testing.T) {
+
+	store := NewAccountStore()
+	service := NewAccountService(store)
+
+	testAccount1 := Account{
+		ID:      1,
+		Owner:   "Arthur",
+		Balance: 150.00,
+	}
+
+	testAccount2 := Account{
+		ID:      2,
+		Owner:   "Daniel",
+		Balance: 200.00,
+	}
+
+	if err := store.AddAccount(testAccount1); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.AddAccount(testAccount2); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := service.Transfer(1, 2, 50); err != nil {
+		t.Fatal(err)
+	}
+
+	account1, err := store.GetAccount(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	account2, err := store.GetAccount(2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if account1.Balance != 100 || account2.Balance != 250 {
+		t.Fatalf("expected account1 balance 100 got %v\nexpected account2 balance 250 got %v", account1.Balance, account2.Balance)
+	}
+
+}
+
+func TestTheSameAccounts(t *testing.T) {
+
+	store := NewAccountStore()
+	service := NewAccountService(store)
+
+	if err := service.Transfer(1, 1, 100); err == nil {
+		t.Fatal("expected error for the same accounts")
+	}
+}
+
+// TRANSFER TESTS //
