@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"testing"
 )
 
@@ -9,7 +10,7 @@ func TestAddAndGetAccount(t *testing.T) {
 	testAccount := Account{
 		ID:      1,
 		Owner:   "Arthur",
-		Balance: 50.99,
+		Balance: 50_99,
 	}
 
 	store := NewAccountStore()
@@ -34,7 +35,7 @@ func TestAddDuplicateAccount(t *testing.T) {
 	testAccount := Account{
 		ID:      1,
 		Owner:   "Arthur",
-		Balance: 50.99,
+		Balance: 50_99,
 	}
 
 	store := NewAccountStore()
@@ -42,7 +43,7 @@ func TestAddDuplicateAccount(t *testing.T) {
 	testAccount2 := Account{
 		ID:      1,
 		Owner:   "Daniel",
-		Balance: 60.99,
+		Balance: 60_99,
 	}
 
 	err := store.AddAccount(testAccount)
@@ -50,8 +51,7 @@ func TestAddDuplicateAccount(t *testing.T) {
 		t.Fatalf("The first account wasn't added!")
 	}
 
-	err2 := store.AddAccount(testAccount2)
-	if err2 == nil {
+	if err := store.AddAccount(testAccount2); !errors.Is(err, ErrAccountExists) {
 		t.Fatalf("Duplicate was allowed!")
 	}
 
@@ -61,8 +61,7 @@ func TestGetNonExistingAccount(t *testing.T) {
 
 	store := NewAccountStore()
 
-	_, err := store.GetAccount(999)
-	if err == nil {
+	if _, err := store.GetAccount(999); !errors.Is(err, ErrAccountNotFound) {
 		t.Fatalf("Method Get does not work correctly")
 	}
 

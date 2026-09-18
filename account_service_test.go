@@ -1,140 +1,139 @@
 package main
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 // DEPOSIT TESTS
-func TestSuccessfulDeposit(t *testing.T) {
 
+func TestSuccessfulDeposit(t *testing.T) {
 	store := NewAccountStore()
 	service := NewAccountService(store)
 
 	testAccount := Account{
 		ID:      1,
 		Owner:   "Arthur",
-		Balance: 50.00,
+		Balance: 50_00,
 	}
 
 	if err := store.AddAccount(testAccount); err != nil {
-		t.Fatal(err)
+		t.Fatalf("failed to add account: %v", err)
 	}
 
-	if err := service.Deposit(1, 100); err != nil {
-		t.Fatal(err)
+	if err := service.Deposit(1, 100_00); err != nil {
+		t.Fatalf("deposit failed: %v", err)
 	}
 
 	account, err := store.GetAccount(1)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("failed to get account: %v", err)
 	}
 
-	if account.Balance != 150 {
-		t.Fatalf("expected balance 150 got %v", account.Balance)
+	if account.Balance != 150_00 {
+		t.Fatalf("expected balance 15000, got %v", account.Balance)
 	}
-
 }
 
-func TestAccountDoesNotExistForDeposit(t *testing.T) {
-
+func TestDepositAccountNotFound(t *testing.T) {
 	store := NewAccountStore()
 	service := NewAccountService(store)
 
-	if err := service.Deposit(1, 100); err == nil {
-		t.Fatal("expected error for non-existing account")
-	}
+	err := service.Deposit(999, 100_00)
 
+	if !errors.Is(err, ErrAccountNotFound) {
+		t.Fatalf("expected ErrAccountNotFound, got %v", err)
+	}
 }
 
 func TestInvalidDeposit(t *testing.T) {
-
 	store := NewAccountStore()
 	service := NewAccountService(store)
 
 	testAccount := Account{
 		ID:      1,
 		Owner:   "Arthur",
-		Balance: 50.00,
+		Balance: 50_00,
 	}
 
 	if err := store.AddAccount(testAccount); err != nil {
-		t.Fatal(err)
+		t.Fatalf("failed to add account: %v", err)
 	}
 
-	if err := service.Deposit(1, -100); err == nil {
-		t.Fatal("expected error for uncorrect value of deposit")
+	err := service.Deposit(1, -100_00)
+
+	if !errors.Is(err, ErrInvalidAmount) {
+		t.Fatalf("expected ErrInvalidAmount, got %v", err)
 	}
 
 	account, err := store.GetAccount(1)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("failed to get account: %v", err)
 	}
 
-	if account.Balance != 50 {
-		t.Fatalf("expected initial balance 50 got %v", account.Balance)
+	if account.Balance != 50_00 {
+		t.Fatalf("expected balance 5000, got %v", account.Balance)
 	}
-
 }
 
-// DEPOSIT TESTS //
+// WITHDRAW TESTS
 
-// WITHDRAW TESTS //
 func TestSuccessfulWithdraw(t *testing.T) {
-
 	store := NewAccountStore()
 	service := NewAccountService(store)
 
 	testAccount := Account{
 		ID:      1,
 		Owner:   "Arthur",
-		Balance: 150.00,
+		Balance: 150_00,
 	}
 
 	if err := store.AddAccount(testAccount); err != nil {
-		t.Fatal(err)
+		t.Fatalf("failed to add account: %v", err)
 	}
 
-	if err := service.Withdraw(1, 100); err != nil {
-		t.Fatal(err)
+	if err := service.Withdraw(1, 100_00); err != nil {
+		t.Fatalf("withdraw failed: %v", err)
 	}
 
 	account, err := store.GetAccount(1)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("failed to get account: %v", err)
 	}
 
-	if account.Balance != 50 {
-		t.Fatalf("expected balance 50 got %v", account.Balance)
+	if account.Balance != 50_00 {
+		t.Fatalf("expected balance 5000, got %v", account.Balance)
 	}
-
 }
 
-func TestNotEnoughMoney(t *testing.T) {
-
+func TestWithdrawInsufficientFunds(t *testing.T) {
 	store := NewAccountStore()
 	service := NewAccountService(store)
 
 	testAccount := Account{
 		ID:      1,
 		Owner:   "Arthur",
-		Balance: 150.00,
+		Balance: 150_00,
 	}
 
 	if err := store.AddAccount(testAccount); err != nil {
-		t.Fatal(err)
+		t.Fatalf("failed to add account: %v", err)
 	}
 
-	if err := service.Withdraw(1, 200); err == nil {
-		t.Fatal("expected error for not enogh money")
+	err := service.Withdraw(1, 200_00)
+
+	if !errors.Is(err, ErrInsufficientFunds) {
+		t.Fatalf("expected ErrInsufficientFunds, got %v", err)
 	}
 
 	account, err := store.GetAccount(1)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("failed to get account: %v", err)
 	}
 
-	if account.Balance != 150 {
-		t.Fatalf("expected balance 150 got %v", account.Balance)
+	if account.Balance != 150_00 {
+		t.Fatalf("expected balance 15000, got %v", account.Balance)
 	}
-
 }
 
 func TestInvalidWithdraw(t *testing.T) {
@@ -144,84 +143,218 @@ func TestInvalidWithdraw(t *testing.T) {
 	testAccount := Account{
 		ID:      1,
 		Owner:   "Arthur",
-		Balance: 150.00,
+		Balance: 150_00,
 	}
 
 	if err := store.AddAccount(testAccount); err != nil {
-		t.Fatal(err)
+		t.Fatalf("failed to add account: %v", err)
 	}
 
-	if err := service.Withdraw(1, -100); err == nil {
-		t.Fatal("expected error for invalid amount")
+	err := service.Withdraw(1, -100_00)
+
+	if !errors.Is(err, ErrInvalidAmount) {
+		t.Fatalf("expected ErrInvalidAmount, got %v", err)
+	}
+
+	account, err := store.GetAccount(1)
+	if err != nil {
+		t.Fatalf("failed to get account: %v", err)
+	}
+
+	if account.Balance != 150_00 {
+		t.Fatalf("expected balance 15000, got %v", account.Balance)
 	}
 }
 
-func TestAccountDoesNotExistForWithdraw(t *testing.T) {
+func TestWithdrawAccountNotFound(t *testing.T) {
 	store := NewAccountStore()
 	service := NewAccountService(store)
 
-	if err := service.Withdraw(1, 100); err == nil {
-		t.Fatal(`expected error for non-existing account`)
-	}
+	err := service.Withdraw(999, 100_00)
 
+	if !errors.Is(err, ErrAccountNotFound) {
+		t.Fatalf("expected ErrAccountNotFound, got %v", err)
+	}
 }
 
-// WITHDRAW TESTS //
+// TRANSFER TESTS
 
-// TRANSFER TESTS //
-
-func TestSuccessfulAccountTransfer(t *testing.T) {
-
+func TestSuccessfulTransfer(t *testing.T) {
 	store := NewAccountStore()
 	service := NewAccountService(store)
 
-	testAccount1 := Account{
+	accountFrom := Account{
 		ID:      1,
 		Owner:   "Arthur",
-		Balance: 150.00,
+		Balance: 150_00,
 	}
 
-	testAccount2 := Account{
+	accountTo := Account{
 		ID:      2,
 		Owner:   "Daniel",
-		Balance: 200.00,
+		Balance: 200_00,
 	}
 
-	if err := store.AddAccount(testAccount1); err != nil {
-		t.Fatal(err)
-	}
-	if err := store.AddAccount(testAccount2); err != nil {
-		t.Fatal(err)
+	if err := store.AddAccount(accountFrom); err != nil {
+		t.Fatalf("failed to add source account: %v", err)
 	}
 
-	if err := service.Transfer(1, 2, 50); err != nil {
-		t.Fatal(err)
+	if err := store.AddAccount(accountTo); err != nil {
+		t.Fatalf("failed to add destination account: %v", err)
 	}
 
-	account1, err := store.GetAccount(1)
+	if err := service.Transfer(1, 2, 5000); err != nil {
+		t.Fatalf("transfer failed: %v", err)
+	}
+
+	updatedFrom, err := store.GetAccount(1)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("failed to get source account: %v", err)
 	}
 
-	account2, err := store.GetAccount(2)
+	updatedTo, err := store.GetAccount(2)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("failed to get destination account: %v", err)
 	}
 
-	if account1.Balance != 100 || account2.Balance != 250 {
-		t.Fatalf("expected account1 balance 100 got %v\nexpected account2 balance 250 got %v", account1.Balance, account2.Balance)
+	if updatedFrom.Balance != 100_00 {
+		t.Fatalf("expected source balance 10000, got %v", updatedFrom.Balance)
 	}
 
+	if updatedTo.Balance != 250_00 {
+		t.Fatalf("expected destination balance 25000, got %v", updatedTo.Balance)
+	}
 }
 
-func TestTheSameAccounts(t *testing.T) {
-
+func TestTransferSameAccount(t *testing.T) {
 	store := NewAccountStore()
 	service := NewAccountService(store)
 
-	if err := service.Transfer(1, 1, 100); err == nil {
-		t.Fatal("expected error for the same accounts")
+	err := service.Transfer(1, 1, 100_00)
+
+	if !errors.Is(err, ErrSameAccount) {
+		t.Fatalf("expected ErrSameAccount, got %v", err)
 	}
 }
 
-// TRANSFER TESTS //
+func TestTransferSourceAccountNotFound(t *testing.T) {
+	store := NewAccountStore()
+	service := NewAccountService(store)
+
+	accountTo := Account{
+		ID:      2,
+		Owner:   "Daniel",
+		Balance: 200_00,
+	}
+
+	if err := store.AddAccount(accountTo); err != nil {
+		t.Fatalf("failed to add destination account: %v", err)
+	}
+
+	err := service.Transfer(1, 2, 50_00)
+
+	if !errors.Is(err, ErrAccountNotFound) {
+		t.Fatalf("expected ErrAccountNotFound, got %v", err)
+	}
+}
+
+func TestTransferDestinationAccountNotFound(t *testing.T) {
+	store := NewAccountStore()
+	service := NewAccountService(store)
+
+	accountFrom := Account{
+		ID:      1,
+		Owner:   "Arthur",
+		Balance: 150_00,
+	}
+
+	if err := store.AddAccount(accountFrom); err != nil {
+		t.Fatalf("failed to add source account: %v", err)
+	}
+
+	err := service.Transfer(1, 2, 50_00)
+
+	if !errors.Is(err, ErrAccountNotFound) {
+		t.Fatalf("expected ErrAccountNotFound, got %v", err)
+	}
+}
+
+func TestTransferInsufficientFunds(t *testing.T) {
+	store := NewAccountStore()
+	service := NewAccountService(store)
+
+	accountFrom := Account{
+		ID:      1,
+		Owner:   "Arthur",
+		Balance: 50_00,
+	}
+
+	accountTo := Account{
+		ID:      2,
+		Owner:   "Daniel",
+		Balance: 200_00,
+	}
+
+	if err := store.AddAccount(accountFrom); err != nil {
+		t.Fatalf("failed to add source account: %v", err)
+	}
+
+	if err := store.AddAccount(accountTo); err != nil {
+		t.Fatalf("failed to add destination account: %v", err)
+	}
+
+	err := service.Transfer(1, 2, 100_00)
+
+	if !errors.Is(err, ErrInsufficientFunds) {
+		t.Fatalf("expected ErrInsufficientFunds, got %v", err)
+	}
+
+	updatedFrom, err := store.GetAccount(1)
+	if err != nil {
+		t.Fatalf("failed to get source account: %v", err)
+	}
+
+	updatedTo, err := store.GetAccount(2)
+	if err != nil {
+		t.Fatalf("failed to get destination account: %v", err)
+	}
+
+	if updatedFrom.Balance != 50_00 {
+		t.Fatalf("expected source balance 5000, got %v", updatedFrom.Balance)
+	}
+
+	if updatedTo.Balance != 200_00 {
+		t.Fatalf("expected destination balance 20000, got %v", updatedTo.Balance)
+	}
+}
+
+func TestTransferInvalidAmount(t *testing.T) {
+	store := NewAccountStore()
+	service := NewAccountService(store)
+
+	accountFrom := Account{
+		ID:      1,
+		Owner:   "Arthur",
+		Balance: 150_00,
+	}
+
+	accountTo := Account{
+		ID:      2,
+		Owner:   "Daniel",
+		Balance: 200_00,
+	}
+
+	if err := store.AddAccount(accountFrom); err != nil {
+		t.Fatalf("failed to add source account: %v", err)
+	}
+
+	if err := store.AddAccount(accountTo); err != nil {
+		t.Fatalf("failed to add destination account: %v", err)
+	}
+
+	err := service.Transfer(1, 2, -50_00)
+
+	if !errors.Is(err, ErrInvalidAmount) {
+		t.Fatalf("expected ErrInvalidAmount, got %v", err)
+	}
+}

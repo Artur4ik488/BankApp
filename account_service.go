@@ -1,18 +1,16 @@
 package main
 
-import (
-	"errors"
-)
-
 // STRUCT
+
 type AccountService struct {
-	store *AccountStore
+	store AccountRepository
 }
 
 // SRTUCT
 
 // NEW SERVICE
-func NewAccountService(store *AccountStore) *AccountService {
+
+func NewAccountService(store AccountRepository) *AccountService {
 	return &AccountService{
 		store: store,
 	}
@@ -20,40 +18,8 @@ func NewAccountService(store *AccountStore) *AccountService {
 
 // NEW SERVICE
 
-// UPDATE
-func (store *AccountStore) UpdateAccount(account Account) error {
-
-	_, ok := store.accounts[account.ID]
-
-	if !ok {
-		return errors.New("account doesn't exist")
-	}
-
-	store.accounts[account.ID] = account
-	return nil
-}
-
-func (store *AccountStore) UpdateAccounts(accountFrom, accountTo Account) error {
-
-	_, okFrom := store.accounts[accountFrom.ID]
-	if !okFrom {
-		return errors.New("account doesn't exist")
-	}
-	_, okTo := store.accounts[accountTo.ID]
-	if !okTo {
-		return errors.New("account doesn't exist")
-	}
-
-	store.accounts[accountFrom.ID] = accountFrom
-	store.accounts[accountTo.ID] = accountTo
-	return nil
-
-}
-
-// UPDATE
-
 // DEPOSIT
-func (service *AccountService) Deposit(accountID int, amount float64) error {
+func (service *AccountService) Deposit(accountID int, amount Money) error {
 
 	account, err1 := service.store.GetAccount(accountID)
 	if err1 != nil {
@@ -74,7 +40,7 @@ func (service *AccountService) Deposit(accountID int, amount float64) error {
 // DEPOSIT
 
 // WITHDRAW
-func (service *AccountService) Withdraw(accountID int, amount float64) error {
+func (service *AccountService) Withdraw(accountID int, amount Money) error {
 
 	account, err1 := service.store.GetAccount(accountID)
 	if err1 != nil {
@@ -96,10 +62,10 @@ func (service *AccountService) Withdraw(accountID int, amount float64) error {
 
 // TRANSFER //
 
-func (service *AccountService) Transfer(fromAccountID, toAccountID int, amount float64) error {
+func (service *AccountService) Transfer(fromAccountID, toAccountID int, amount Money) error {
 
 	if fromAccountID == toAccountID {
-		return errors.New("The same accounts")
+		return ErrSameAccount
 	}
 
 	accountFrom, err := service.store.GetAccount(fromAccountID)

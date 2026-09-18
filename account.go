@@ -1,27 +1,27 @@
 package main
 
-import "errors"
+type Money int64
 
 type Account struct {
 	ID      int
 	Owner   string
-	Balance float64
+	Balance Money
 }
 
-func (account *Account) Deposit(amount float64) error {
+func (account *Account) Deposit(amount Money) error {
 	if amount <= 0 {
-		return errors.New("deposit amount must be greater than zero")
+		return ErrInvalidAmount
 	}
 	account.Balance += amount
 	return nil
 }
 
-func (account *Account) Withdraw(amount float64) error {
+func (account *Account) Withdraw(amount Money) error {
 	if amount <= 0 {
-		return errors.New("amount must be greater than zero")
+		return ErrInvalidAmount
 	}
 	if amount > account.Balance {
-		return errors.New("insufficient funds")
+		return ErrInsufficientFunds
 	}
 	account.Balance -= amount
 	return nil
