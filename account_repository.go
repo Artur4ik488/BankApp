@@ -5,4 +5,5 @@ type AccountRepository interface {
 	GetAccount(id int) (Account, error)
 	UpdateAccount(account Account) error
 	UpdateAccounts(accountFrom, accountTo Account) error
+	CreateAccount(account Account) (Account, error)
 }

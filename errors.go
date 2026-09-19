@@ -8,4 +8,5 @@ var (
 	ErrInvalidAmount     = errors.New("invalid amount")
 	ErrInsufficientFunds = errors.New("insufficient funds")
 	ErrSameAccount       = errors.New("cannot transfer to the same account")
+	ErrInvalidOwner      = errors.New("Invalid account owner")
 )

@@ -18,6 +18,24 @@ func NewAccountService(store AccountRepository) *AccountService {
 
 // NEW SERVICE
 
+// NEW ACCOUNT //
+func (service *AccountService) CreateAccount(owner string) (Account, error) {
+
+	if owner == "" {
+		return Account{}, ErrInvalidOwner
+	}
+
+	account := Account{
+		Owner:   owner,
+		Balance: 0,
+	}
+
+	return service.store.CreateAccount(account)
+
+}
+
+// NEW ACCOUNT //
+
 // DEPOSIT
 func (service *AccountService) Deposit(accountID int, amount Money) error {
 
