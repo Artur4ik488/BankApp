@@ -1,5 +1,7 @@
 package main
 
+import "context"
+
 type AccountStore struct {
 	accounts map[int]Account
 	nextID   int
@@ -15,11 +17,14 @@ func NewAccountStore() *AccountStore {
 
 // CREAETE ACCOUNT //
 
-func (store *AccountStore) CreateAccount(account Account) (Account, error) {
+func (store *AccountStore) CreateAccount(
+	ctx context.Context,
+	account Account,
+) (Account, error) {
 
 	account.ID = store.nextID
 
-	if err := store.AddAccount(account); err != nil {
+	if err := store.AddAccount(ctx, account); err != nil {
 		return Account{}, err
 	}
 	return account, nil
@@ -29,7 +34,10 @@ func (store *AccountStore) CreateAccount(account Account) (Account, error) {
 
 // ADD ACCOUNT //
 
-func (store *AccountStore) AddAccount(account Account) error {
+func (store *AccountStore) AddAccount(
+	ctx context.Context,
+	account Account,
+) error {
 
 	_, ok := store.accounts[account.ID]
 
@@ -39,7 +47,7 @@ func (store *AccountStore) AddAccount(account Account) error {
 	store.accounts[account.ID] = account
 
 	if account.ID >= store.nextID {
-		store.nextID = store.nextID + 1
+		store.nextID = account.ID + 1
 	}
 	return nil
 }
@@ -48,7 +56,10 @@ func (store *AccountStore) AddAccount(account Account) error {
 
 // GET ACCOUNT //
 
-func (store *AccountStore) GetAccount(id int) (Account, error) {
+func (store *AccountStore) GetAccount(
+	ctx context.Context,
+	id int,
+) (Account, error) {
 
 	value, ok := store.accounts[id]
 
@@ -63,7 +74,10 @@ func (store *AccountStore) GetAccount(id int) (Account, error) {
 
 // UPDATE //
 
-func (store *AccountStore) UpdateAccount(account Account) error {
+func (store *AccountStore) UpdateAccount(
+	ctx context.Context,
+	account Account,
+) error {
 
 	_, ok := store.accounts[account.ID]
 
@@ -75,7 +89,10 @@ func (store *AccountStore) UpdateAccount(account Account) error {
 	return nil
 }
 
-func (store *AccountStore) UpdateAccounts(accountFrom, accountTo Account) error {
+func (store *AccountStore) UpdateAccounts(
+	ctx context.Context,
+	accountFrom, accountTo Account,
+) error {
 
 	_, okFrom := store.accounts[accountFrom.ID]
 	if !okFrom {

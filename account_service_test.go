@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"testing"
 )
@@ -11,21 +12,23 @@ func TestSuccessfulDeposit(t *testing.T) {
 	store := NewAccountStore()
 	service := NewAccountService(store)
 
+	ctx := context.Background()
+
 	testAccount := Account{
 		ID:      1,
 		Owner:   "Arthur",
 		Balance: 50_00,
 	}
 
-	if err := store.AddAccount(testAccount); err != nil {
+	if err := store.AddAccount(ctx, testAccount); err != nil {
 		t.Fatalf("failed to add account: %v", err)
 	}
 
-	if err := service.Deposit(1, 100_00); err != nil {
+	if err := service.Deposit(ctx, 1, 100_00); err != nil {
 		t.Fatalf("deposit failed: %v", err)
 	}
 
-	account, err := store.GetAccount(1)
+	account, err := store.GetAccount(ctx, 1)
 	if err != nil {
 		t.Fatalf("failed to get account: %v", err)
 	}
@@ -39,7 +42,9 @@ func TestDepositAccountNotFound(t *testing.T) {
 	store := NewAccountStore()
 	service := NewAccountService(store)
 
-	err := service.Deposit(999, 100_00)
+	ctx := context.Background()
+
+	err := service.Deposit(ctx, 999, 100_00)
 
 	if !errors.Is(err, ErrAccountNotFound) {
 		t.Fatalf("expected ErrAccountNotFound, got %v", err)
@@ -50,23 +55,25 @@ func TestInvalidDeposit(t *testing.T) {
 	store := NewAccountStore()
 	service := NewAccountService(store)
 
+	ctx := context.Background()
+
 	testAccount := Account{
 		ID:      1,
 		Owner:   "Arthur",
 		Balance: 50_00,
 	}
 
-	if err := store.AddAccount(testAccount); err != nil {
+	if err := store.AddAccount(ctx, testAccount); err != nil {
 		t.Fatalf("failed to add account: %v", err)
 	}
 
-	err := service.Deposit(1, -100_00)
+	err := service.Deposit(ctx, 1, -100_00)
 
 	if !errors.Is(err, ErrInvalidAmount) {
 		t.Fatalf("expected ErrInvalidAmount, got %v", err)
 	}
 
-	account, err := store.GetAccount(1)
+	account, err := store.GetAccount(ctx, 1)
 	if err != nil {
 		t.Fatalf("failed to get account: %v", err)
 	}
@@ -88,15 +95,17 @@ func TestSuccessfulWithdraw(t *testing.T) {
 		Balance: 150_00,
 	}
 
-	if err := store.AddAccount(testAccount); err != nil {
+	ctx := context.Background()
+
+	if err := store.AddAccount(ctx, testAccount); err != nil {
 		t.Fatalf("failed to add account: %v", err)
 	}
 
-	if err := service.Withdraw(1, 100_00); err != nil {
+	if err := service.Withdraw(ctx, 1, 100_00); err != nil {
 		t.Fatalf("withdraw failed: %v", err)
 	}
 
-	account, err := store.GetAccount(1)
+	account, err := store.GetAccount(ctx, 1)
 	if err != nil {
 		t.Fatalf("failed to get account: %v", err)
 	}
@@ -110,23 +119,25 @@ func TestWithdrawInsufficientFunds(t *testing.T) {
 	store := NewAccountStore()
 	service := NewAccountService(store)
 
+	ctx := context.Background()
+
 	testAccount := Account{
 		ID:      1,
 		Owner:   "Arthur",
 		Balance: 150_00,
 	}
 
-	if err := store.AddAccount(testAccount); err != nil {
+	if err := store.AddAccount(ctx, testAccount); err != nil {
 		t.Fatalf("failed to add account: %v", err)
 	}
 
-	err := service.Withdraw(1, 200_00)
+	err := service.Withdraw(ctx, 1, 200_00)
 
 	if !errors.Is(err, ErrInsufficientFunds) {
 		t.Fatalf("expected ErrInsufficientFunds, got %v", err)
 	}
 
-	account, err := store.GetAccount(1)
+	account, err := store.GetAccount(ctx, 1)
 	if err != nil {
 		t.Fatalf("failed to get account: %v", err)
 	}
@@ -140,23 +151,25 @@ func TestInvalidWithdraw(t *testing.T) {
 	store := NewAccountStore()
 	service := NewAccountService(store)
 
+	ctx := context.Background()
+
 	testAccount := Account{
 		ID:      1,
 		Owner:   "Arthur",
 		Balance: 150_00,
 	}
 
-	if err := store.AddAccount(testAccount); err != nil {
+	if err := store.AddAccount(ctx, testAccount); err != nil {
 		t.Fatalf("failed to add account: %v", err)
 	}
 
-	err := service.Withdraw(1, -100_00)
+	err := service.Withdraw(ctx, 1, -100_00)
 
 	if !errors.Is(err, ErrInvalidAmount) {
 		t.Fatalf("expected ErrInvalidAmount, got %v", err)
 	}
 
-	account, err := store.GetAccount(1)
+	account, err := store.GetAccount(ctx, 1)
 	if err != nil {
 		t.Fatalf("failed to get account: %v", err)
 	}
@@ -170,7 +183,9 @@ func TestWithdrawAccountNotFound(t *testing.T) {
 	store := NewAccountStore()
 	service := NewAccountService(store)
 
-	err := service.Withdraw(999, 100_00)
+	ctx := context.Background()
+
+	err := service.Withdraw(ctx, 999, 100_00)
 
 	if !errors.Is(err, ErrAccountNotFound) {
 		t.Fatalf("expected ErrAccountNotFound, got %v", err)
@@ -182,6 +197,8 @@ func TestWithdrawAccountNotFound(t *testing.T) {
 func TestSuccessfulTransfer(t *testing.T) {
 	store := NewAccountStore()
 	service := NewAccountService(store)
+
+	ctx := context.Background()
 
 	accountFrom := Account{
 		ID:      1,
@@ -195,24 +212,24 @@ func TestSuccessfulTransfer(t *testing.T) {
 		Balance: 200_00,
 	}
 
-	if err := store.AddAccount(accountFrom); err != nil {
+	if err := store.AddAccount(ctx, accountFrom); err != nil {
 		t.Fatalf("failed to add source account: %v", err)
 	}
 
-	if err := store.AddAccount(accountTo); err != nil {
+	if err := store.AddAccount(ctx, accountTo); err != nil {
 		t.Fatalf("failed to add destination account: %v", err)
 	}
 
-	if err := service.Transfer(1, 2, 5000); err != nil {
+	if err := service.Transfer(ctx, 1, 2, 5000); err != nil {
 		t.Fatalf("transfer failed: %v", err)
 	}
 
-	updatedFrom, err := store.GetAccount(1)
+	updatedFrom, err := store.GetAccount(ctx, 1)
 	if err != nil {
 		t.Fatalf("failed to get source account: %v", err)
 	}
 
-	updatedTo, err := store.GetAccount(2)
+	updatedTo, err := store.GetAccount(ctx, 2)
 	if err != nil {
 		t.Fatalf("failed to get destination account: %v", err)
 	}
@@ -230,7 +247,9 @@ func TestTransferSameAccount(t *testing.T) {
 	store := NewAccountStore()
 	service := NewAccountService(store)
 
-	err := service.Transfer(1, 1, 100_00)
+	ctx := context.Background()
+
+	err := service.Transfer(ctx, 1, 1, 100_00)
 
 	if !errors.Is(err, ErrSameAccount) {
 		t.Fatalf("expected ErrSameAccount, got %v", err)
@@ -241,17 +260,19 @@ func TestTransferSourceAccountNotFound(t *testing.T) {
 	store := NewAccountStore()
 	service := NewAccountService(store)
 
+	ctx := context.Background()
+
 	accountTo := Account{
 		ID:      2,
 		Owner:   "Daniel",
 		Balance: 200_00,
 	}
 
-	if err := store.AddAccount(accountTo); err != nil {
+	if err := store.AddAccount(ctx, accountTo); err != nil {
 		t.Fatalf("failed to add destination account: %v", err)
 	}
 
-	err := service.Transfer(1, 2, 50_00)
+	err := service.Transfer(ctx, 1, 2, 50_00)
 
 	if !errors.Is(err, ErrAccountNotFound) {
 		t.Fatalf("expected ErrAccountNotFound, got %v", err)
@@ -262,17 +283,19 @@ func TestTransferDestinationAccountNotFound(t *testing.T) {
 	store := NewAccountStore()
 	service := NewAccountService(store)
 
+	ctx := context.Background()
+
 	accountFrom := Account{
 		ID:      1,
 		Owner:   "Arthur",
 		Balance: 150_00,
 	}
 
-	if err := store.AddAccount(accountFrom); err != nil {
+	if err := store.AddAccount(ctx, accountFrom); err != nil {
 		t.Fatalf("failed to add source account: %v", err)
 	}
 
-	err := service.Transfer(1, 2, 50_00)
+	err := service.Transfer(ctx, 1, 2, 50_00)
 
 	if !errors.Is(err, ErrAccountNotFound) {
 		t.Fatalf("expected ErrAccountNotFound, got %v", err)
@@ -282,6 +305,8 @@ func TestTransferDestinationAccountNotFound(t *testing.T) {
 func TestTransferInsufficientFunds(t *testing.T) {
 	store := NewAccountStore()
 	service := NewAccountService(store)
+
+	ctx := context.Background()
 
 	accountFrom := Account{
 		ID:      1,
@@ -295,26 +320,26 @@ func TestTransferInsufficientFunds(t *testing.T) {
 		Balance: 200_00,
 	}
 
-	if err := store.AddAccount(accountFrom); err != nil {
+	if err := store.AddAccount(ctx, accountFrom); err != nil {
 		t.Fatalf("failed to add source account: %v", err)
 	}
 
-	if err := store.AddAccount(accountTo); err != nil {
+	if err := store.AddAccount(ctx, accountTo); err != nil {
 		t.Fatalf("failed to add destination account: %v", err)
 	}
 
-	err := service.Transfer(1, 2, 100_00)
+	err := service.Transfer(ctx, 1, 2, 100_00)
 
 	if !errors.Is(err, ErrInsufficientFunds) {
 		t.Fatalf("expected ErrInsufficientFunds, got %v", err)
 	}
 
-	updatedFrom, err := store.GetAccount(1)
+	updatedFrom, err := store.GetAccount(ctx, 1)
 	if err != nil {
 		t.Fatalf("failed to get source account: %v", err)
 	}
 
-	updatedTo, err := store.GetAccount(2)
+	updatedTo, err := store.GetAccount(ctx, 2)
 	if err != nil {
 		t.Fatalf("failed to get destination account: %v", err)
 	}
@@ -332,6 +357,8 @@ func TestTransferInvalidAmount(t *testing.T) {
 	store := NewAccountStore()
 	service := NewAccountService(store)
 
+	ctx := context.Background()
+
 	accountFrom := Account{
 		ID:      1,
 		Owner:   "Arthur",
@@ -344,15 +371,15 @@ func TestTransferInvalidAmount(t *testing.T) {
 		Balance: 200_00,
 	}
 
-	if err := store.AddAccount(accountFrom); err != nil {
+	if err := store.AddAccount(ctx, accountFrom); err != nil {
 		t.Fatalf("failed to add source account: %v", err)
 	}
 
-	if err := store.AddAccount(accountTo); err != nil {
+	if err := store.AddAccount(ctx, accountTo); err != nil {
 		t.Fatalf("failed to add destination account: %v", err)
 	}
 
-	err := service.Transfer(1, 2, -50_00)
+	err := service.Transfer(ctx, 1, 2, -50_00)
 
 	if !errors.Is(err, ErrInvalidAmount) {
 		t.Fatalf("expected ErrInvalidAmount, got %v", err)
@@ -364,12 +391,14 @@ func TestCreateAccountSuccessful(t *testing.T) {
 	store := NewAccountStore()
 	service := NewAccountService(store)
 
-	account, err := service.CreateAccount("Arthur")
+	ctx := context.Background()
+
+	account, err := service.CreateAccount(ctx, "Arthur")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	storedAccount, err := store.GetAccount(account.ID)
+	storedAccount, err := store.GetAccount(ctx, account.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -389,16 +418,51 @@ func TestCreateAccountSuccessful(t *testing.T) {
 
 }
 
+func TestCreateAccountThatStartsWithID7ThenNextMustToBe7(t *testing.T) {
+	store := NewAccountStore()
+	service := NewAccountService(store)
+
+	ctx := context.Background()
+
+	account := Account{
+		ID:      6,
+		Owner:   "Daniel",
+		Balance: 0,
+	}
+
+	if err := service.store.AddAccount(ctx, account); err != nil {
+		t.Fatal(err)
+	}
+
+	account2, err := service.CreateAccount(ctx, "Arthur")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if account2.ID != 7 {
+		t.Fatalf("ID of account doesn't match, must be 7 got %v", account2.ID)
+	}
+	storedAccount, err := store.GetAccount(ctx, account2.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if storedAccount != account2 {
+		t.Fatal("stored account does not match created account2")
+	}
+}
+
 func TestCreateTwoAccountsSuccessful(t *testing.T) {
 	store := NewAccountStore()
 	service := NewAccountService(store)
 
-	account1, err1 := service.CreateAccount("Arthur")
+	ctx := context.Background()
+
+	account1, err1 := service.CreateAccount(ctx, "Arthur")
 	if err1 != nil {
 		t.Fatal(err1)
 	}
 
-	storedAccount1, err2 := store.GetAccount(account1.ID)
+	storedAccount1, err2 := store.GetAccount(ctx, account1.ID)
 	if err2 != nil {
 		t.Fatal(err2)
 	}
@@ -406,12 +470,12 @@ func TestCreateTwoAccountsSuccessful(t *testing.T) {
 		t.Fatal("stored account does not match created account1")
 	}
 
-	account2, err3 := service.CreateAccount("Daniel")
+	account2, err3 := service.CreateAccount(ctx, "Daniel")
 	if err3 != nil {
 		t.Fatal(err3)
 	}
 
-	storedAccount2, err4 := store.GetAccount(account2.ID)
+	storedAccount2, err4 := store.GetAccount(ctx, account2.ID)
 	if err4 != nil {
 		t.Fatal(err4)
 	}
@@ -445,7 +509,9 @@ func TestCreateAccountInvalidOwner(t *testing.T) {
 	store := NewAccountStore()
 	service := NewAccountService(store)
 
-	_, err := service.CreateAccount("")
+	ctx := context.Background()
+
+	_, err := service.CreateAccount(ctx, "")
 
 	if !errors.Is(err, ErrInvalidOwner) {
 		t.Fatalf("expected ErrInvalidOwner got %v", err)

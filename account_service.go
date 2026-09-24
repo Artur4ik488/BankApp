@@ -1,5 +1,7 @@
 package main
 
+import "context"
+
 // STRUCT
 
 type AccountService struct {
@@ -19,7 +21,10 @@ func NewAccountService(store AccountRepository) *AccountService {
 // NEW SERVICE
 
 // NEW ACCOUNT //
-func (service *AccountService) CreateAccount(owner string) (Account, error) {
+func (service *AccountService) CreateAccount(
+	ctx context.Context,
+	owner string,
+) (Account, error) {
 
 	if owner == "" {
 		return Account{}, ErrInvalidOwner
@@ -30,25 +35,30 @@ func (service *AccountService) CreateAccount(owner string) (Account, error) {
 		Balance: 0,
 	}
 
-	return service.store.CreateAccount(account)
+	return service.store.CreateAccount(ctx, account)
 
 }
 
 // NEW ACCOUNT //
 
 // DEPOSIT
-func (service *AccountService) Deposit(accountID int, amount Money) error {
 
-	account, err1 := service.store.GetAccount(accountID)
-	if err1 != nil {
-		return err1
+func (service *AccountService) Deposit(
+	ctx context.Context,
+	accountID int,
+	amount Money,
+) error {
+
+	account, err := service.store.GetAccount(ctx, accountID)
+	if err != nil {
+		return err
 	}
 
 	if err := account.Deposit(amount); err != nil {
 		return err
 	}
 
-	if err := service.store.UpdateAccount(account); err != nil {
+	if err := service.store.UpdateAccount(ctx, account); err != nil {
 		return err
 	}
 	return nil
@@ -58,18 +68,23 @@ func (service *AccountService) Deposit(accountID int, amount Money) error {
 // DEPOSIT
 
 // WITHDRAW
-func (service *AccountService) Withdraw(accountID int, amount Money) error {
 
-	account, err1 := service.store.GetAccount(accountID)
-	if err1 != nil {
-		return err1
+func (service *AccountService) Withdraw(
+	ctx context.Context,
+	accountID int,
+	amount Money,
+) error {
+
+	account, err := service.store.GetAccount(ctx, accountID)
+	if err != nil {
+		return err
 	}
 
 	if err := account.Withdraw(amount); err != nil {
 		return err
 	}
 
-	if err := service.store.UpdateAccount(account); err != nil {
+	if err := service.store.UpdateAccount(ctx, account); err != nil {
 		return err
 	}
 	return nil
@@ -80,17 +95,21 @@ func (service *AccountService) Withdraw(accountID int, amount Money) error {
 
 // TRANSFER //
 
-func (service *AccountService) Transfer(fromAccountID, toAccountID int, amount Money) error {
+func (service *AccountService) Transfer(
+	ctx context.Context,
+	fromAccountID, toAccountID int,
+	amount Money,
+) error {
 
 	if fromAccountID == toAccountID {
 		return ErrSameAccount
 	}
 
-	accountFrom, err := service.store.GetAccount(fromAccountID)
+	accountFrom, err := service.store.GetAccount(ctx, fromAccountID)
 	if err != nil {
 		return err
 	}
-	accountTo, err := service.store.GetAccount(toAccountID)
+	accountTo, err := service.store.GetAccount(ctx, toAccountID)
 	if err != nil {
 		return err
 	}
@@ -103,7 +122,7 @@ func (service *AccountService) Transfer(fromAccountID, toAccountID int, amount M
 		return err
 	}
 
-	if err := service.store.UpdateAccounts(accountFrom, accountTo); err != nil {
+	if err := service.store.UpdateAccounts(ctx, accountFrom, accountTo); err != nil {
 		return err
 	}
 	return nil

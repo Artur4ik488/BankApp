@@ -1,9 +1,11 @@
 package main
 
+import "context"
+
 type AccountRepository interface {
-	AddAccount(account Account) error
-	GetAccount(id int) (Account, error)
-	UpdateAccount(account Account) error
-	UpdateAccounts(accountFrom, accountTo Account) error
-	CreateAccount(account Account) (Account, error)
+	AddAccount(ctx context.Context, account Account) error
+	GetAccount(ctx context.Context, id int) (Account, error)
+	UpdateAccount(ctx context.Context, account Account) error
+	UpdateAccounts(ctx context.Context, accountFrom, accountTo Account) error
+	CreateAccount(ctx context.Context, account Account) (Account, error)
 }
