@@ -7,6 +7,8 @@ type AccountStore struct {
 	nextID   int
 }
 
+var _ AccountRepository = (*AccountStore)(nil)
+
 func NewAccountStore() *AccountStore {
 	accountStore := make(map[int]Account)
 	return &AccountStore{

@@ -2,15 +2,9 @@ package main
 
 import "context"
 
-// STRUCT
-
 type AccountService struct {
 	store AccountRepository
 }
-
-// SRTUCT
-
-// NEW SERVICE
 
 func NewAccountService(store AccountRepository) *AccountService {
 	return &AccountService{
@@ -18,9 +12,6 @@ func NewAccountService(store AccountRepository) *AccountService {
 	}
 }
 
-// NEW SERVICE
-
-// NEW ACCOUNT //
 func (service *AccountService) CreateAccount(
 	ctx context.Context,
 	owner string,
@@ -36,12 +27,14 @@ func (service *AccountService) CreateAccount(
 	}
 
 	return service.store.CreateAccount(ctx, account)
-
 }
 
-// NEW ACCOUNT //
-
-// DEPOSIT
+func (service *AccountService) GetAccount(
+	ctx context.Context,
+	accountID int,
+) (Account, error) {
+	return service.store.GetAccount(ctx, accountID)
+}
 
 func (service *AccountService) Deposit(
 	ctx context.Context,
@@ -62,12 +55,7 @@ func (service *AccountService) Deposit(
 		return err
 	}
 	return nil
-
 }
-
-// DEPOSIT
-
-// WITHDRAW
 
 func (service *AccountService) Withdraw(
 	ctx context.Context,
@@ -88,12 +76,7 @@ func (service *AccountService) Withdraw(
 		return err
 	}
 	return nil
-
 }
-
-// WITHDRAW
-
-// TRANSFER //
 
 func (service *AccountService) Transfer(
 	ctx context.Context,
@@ -126,7 +109,4 @@ func (service *AccountService) Transfer(
 		return err
 	}
 	return nil
-
 }
-
-// TRANSFER //

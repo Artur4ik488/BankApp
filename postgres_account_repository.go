@@ -12,6 +12,8 @@ type PostgresAccountRepository struct {
 	pool *pgxpool.Pool
 }
 
+var _ AccountRepository = (*PostgresAccountRepository)(nil)
+
 func NewPostgresAccountRepository(
 	pool *pgxpool.Pool,
 ) *PostgresAccountRepository {
@@ -82,4 +84,86 @@ func (repo *PostgresAccountRepository) GetAccount(
 
 	return account, nil
 
+}
+
+func (repo *PostgresAccountRepository) UpdateAccount(
+	ctx context.Context,
+	account Account,
+) error {
+	const query = `
+		UPDATE accounts
+		SET owner = $1, balance = $2
+		WHERE id = $3
+	`
+
+	result, err := repo.pool.Exec(
+		ctx,
+		query,
+		account.Owner,
+		account.Balance,
+		account.ID,
+	)
+	if err != nil {
+		return err
+	}
+
+	if result.RowsAffected() == 0 {
+		return ErrAccountNotFound
+	}
+
+	return nil
+}
+
+func (repo *PostgresAccountRepository) UpdateAccounts(
+	ctx context.Context,
+	accountFrom, accountTo Account,
+) error {
+	tx, err := repo.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+
+	defer tx.Rollback(ctx)
+
+	const query = `
+		UPDATE accounts
+		SET owner = $1, balance = $2
+		WHERE id = $3
+	`
+
+	result1, err1 := tx.Exec(
+		ctx,
+		query,
+		accountFrom.Owner,
+		accountFrom.Balance,
+		accountFrom.ID,
+	)
+	if err1 != nil {
+		return err1
+	}
+
+	if result1.RowsAffected() == 0 {
+		return ErrAccountNotFound
+	}
+
+	result2, err2 := tx.Exec(
+		ctx,
+		query,
+		accountTo.Owner,
+		accountTo.Balance,
+		accountTo.ID,
+	)
+	if err2 != nil {
+		return err2
+	}
+
+	if result2.RowsAffected() == 0 {
+		return ErrAccountNotFound
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+
+	return nil
 }

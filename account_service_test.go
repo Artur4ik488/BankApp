@@ -430,7 +430,7 @@ func TestCreateAccountThatStartsWithID7ThenNextMustToBe7(t *testing.T) {
 		Balance: 0,
 	}
 
-	if err := service.store.AddAccount(ctx, account); err != nil {
+	if err := store.AddAccount(ctx, account); err != nil {
 		t.Fatal(err)
 	}
 
