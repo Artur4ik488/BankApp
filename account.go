@@ -3,9 +3,9 @@ package main
 type Money int64
 
 type Account struct {
-	ID      int
-	Owner   string
-	Balance Money
+	ID      int    `json:"id"`
+	Owner   string `json:"owner"`
+	Balance Money  `json:"balance"`
 }
 
 func (account *Account) Deposit(amount Money) error {

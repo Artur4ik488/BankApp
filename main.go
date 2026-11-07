@@ -4,85 +4,82 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
 
-	if err := run(context.Background()); err != nil {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if err := run(ctx); err != nil {
 		slog.Error("application failed", "error", err)
 		os.Exit(1)
 	}
 }
 
 func run(ctx context.Context) error {
-	databaseURL := os.Getenv("DATABASE_URL")
-	if databaseURL == "" {
-		return fmt.Errorf("DATABASE_URL is not set")
+	var repo AccountRepository
+	if os.Getenv("BANKAPP_STORE") == "memory" {
+		repo = NewAccountStore()
+		slog.Info("using in-memory account store")
+	} else {
+		databaseURL, err := databaseURLFromEnvironment()
+		if err != nil {
+			return err
+		}
+
+		pool, err := NewPostgresPool(ctx, databaseURL)
+		if err != nil {
+			return fmt.Errorf("connect to database: %w", err)
+		}
+		defer pool.Close()
+
+		repo = NewPostgresAccountRepository(pool)
+		slog.Info("database connection established")
 	}
 
-	pool, err := NewPostgresPool(ctx, databaseURL)
-	if err != nil {
-		return fmt.Errorf("connect to database: %w", err)
-	}
-	defer pool.Close()
-
-	slog.Info("database connection established")
-
-	repo := NewPostgresAccountRepository(pool)
 	service := NewAccountService(repo)
 
-	fromAccount, err := service.CreateAccount(ctx, "Arthur")
-	if err != nil {
-		return fmt.Errorf("create source account: %w", err)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
 	}
 
-	toAccount, err := service.CreateAccount(ctx, "Daniel")
-	if err != nil {
-		return fmt.Errorf("create destination account: %w", err)
+	server := &http.Server{
+		Addr:              ":" + port,
+		Handler:           NewHTTPHandler(service),
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 
-	if err := service.Deposit(ctx, fromAccount.ID, 100_00); err != nil {
-		return fmt.Errorf("deposit into source account: %w", err)
+	serverError := make(chan error, 1)
+	go func() {
+		slog.Info("BankApp is ready", "url", "http://localhost:"+port)
+		serverError <- server.ListenAndServe()
+	}()
+
+	select {
+	case err := <-serverError:
+		if err != nil && err != http.ErrServerClosed {
+			return fmt.Errorf("serve HTTP: %w", err)
+		}
+		return nil
+	case <-ctx.Done():
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			return fmt.Errorf("shutdown HTTP server: %w", err)
+		}
+		slog.Info("BankApp stopped")
+		return nil
 	}
-
-	if err := service.Deposit(ctx, toAccount.ID, 50_00); err != nil {
-		return fmt.Errorf("deposit into destination account: %w", err)
-	}
-
-	if err := service.Transfer(ctx, fromAccount.ID, toAccount.ID, 25_00); err != nil {
-		return fmt.Errorf("transfer money: %w", err)
-	}
-
-	if err := service.Withdraw(ctx, toAccount.ID, 10_00); err != nil {
-		return fmt.Errorf("withdraw from destination account: %w", err)
-	}
-
-	fromAccount, err = service.GetAccount(ctx, fromAccount.ID)
-	if err != nil {
-		return fmt.Errorf("get source account: %w", err)
-	}
-
-	toAccount, err = service.GetAccount(ctx, toAccount.ID)
-	if err != nil {
-		return fmt.Errorf("get destination account: %w", err)
-	}
-
-	slog.Info(
-		"banking demo completed",
-		"source_account", slog.GroupValue(
-			slog.Int("id", fromAccount.ID),
-			slog.String("owner", fromAccount.Owner),
-			slog.Int64("balance_cents", int64(fromAccount.Balance)),
-		),
-		"destination_account", slog.GroupValue(
-			slog.Int("id", toAccount.ID),
-			slog.String("owner", toAccount.Owner),
-			slog.Int64("balance_cents", int64(toAccount.Balance)),
-		),
-	)
-
-	return nil
 }

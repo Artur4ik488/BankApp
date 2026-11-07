@@ -86,6 +86,36 @@ func (repo *PostgresAccountRepository) GetAccount(
 
 }
 
+func (repo *PostgresAccountRepository) ListAccounts(
+	ctx context.Context,
+) ([]Account, error) {
+	const query = `
+		SELECT id, owner, balance
+		FROM accounts
+		ORDER BY id
+	`
+
+	rows, err := repo.pool.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	accounts := make([]Account, 0)
+	for rows.Next() {
+		var account Account
+		if err := rows.Scan(&account.ID, &account.Owner, &account.Balance); err != nil {
+			return nil, err
+		}
+		accounts = append(accounts, account)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return accounts, nil
+}
+
 func (repo *PostgresAccountRepository) UpdateAccount(
 	ctx context.Context,
 	account Account,

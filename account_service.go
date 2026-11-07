@@ -1,8 +1,13 @@
 package main
 
-import "context"
+import (
+	"context"
+	"strings"
+	"sync"
+)
 
 type AccountService struct {
+	mu    sync.Mutex
 	store AccountRepository
 }
 
@@ -16,7 +21,7 @@ func (service *AccountService) CreateAccount(
 	ctx context.Context,
 	owner string,
 ) (Account, error) {
-
+	owner = strings.TrimSpace(owner)
 	if owner == "" {
 		return Account{}, ErrInvalidOwner
 	}
@@ -27,6 +32,10 @@ func (service *AccountService) CreateAccount(
 	}
 
 	return service.store.CreateAccount(ctx, account)
+}
+
+func (service *AccountService) ListAccounts(ctx context.Context) ([]Account, error) {
+	return service.store.ListAccounts(ctx)
 }
 
 func (service *AccountService) GetAccount(
@@ -41,6 +50,8 @@ func (service *AccountService) Deposit(
 	accountID int,
 	amount Money,
 ) error {
+	service.mu.Lock()
+	defer service.mu.Unlock()
 
 	account, err := service.store.GetAccount(ctx, accountID)
 	if err != nil {
@@ -62,6 +73,8 @@ func (service *AccountService) Withdraw(
 	accountID int,
 	amount Money,
 ) error {
+	service.mu.Lock()
+	defer service.mu.Unlock()
 
 	account, err := service.store.GetAccount(ctx, accountID)
 	if err != nil {
@@ -83,6 +96,8 @@ func (service *AccountService) Transfer(
 	fromAccountID, toAccountID int,
 	amount Money,
 ) error {
+	service.mu.Lock()
+	defer service.mu.Unlock()
 
 	if fromAccountID == toAccountID {
 		return ErrSameAccount

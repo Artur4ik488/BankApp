@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A clear, modern dashboard for the BankApp banking service.">
+  <title>BankApp — Your money, in motion</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="#overview" aria-label="BankApp home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" role="img"><path d="M7 7.5A3.5 3.5 0 0 1 10.5 4h7a7.5 7.5 0 0 1 0 15H12v9H7V7.5Zm5 1.5v5h5.5a2.5 2.5 0 0 0 0-5H12Z"/></svg>
+        </span>
+        <span>BankApp</span>
+      </a>
+
+      <nav class="main-nav" aria-label="Main navigation">
+        <a class="nav-link active" href="#overview">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6V4H4v9Zm0 7h6v-5H4v5Zm10 0h6v-9h-6v9Zm0-16v5h6V4h-6Z"/></svg>
+          Overview
+        </a>
+        <a class="nav-link" href="#accounts">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5V7H4V5.5ZM4 9h16v9.5a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 18.5V9Zm11 4v2h3v-2h-3Z"/></svg>
+          Accounts
+        </a>
+        <a class="nav-link" href="#transfer">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 4 5 5-5 5v-3H5V7h10V4ZM9 10v3h10v4H9v3l-5-5 5-5Z"/></svg>
+          Transfer
+        </a>
+        <a class="nav-link" href="#activity">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 1-8.4 5.8l2 .8A7 7 0 1 0 8 6.8V10H6V3h7v2h-3.4A8.9 8.9 0 0 1 12 3Zm-1 4h2v4.6l3.2 2-1 1.7-4.2-2.6V7Z"/></svg>
+          Activity
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="connection-card">
+          <span class="status-dot" id="status-dot"></span>
+          <div>
+            <strong id="connection-label">Connecting</strong>
+            <span>PostgreSQL service</span>
+          </div>
+        </div>
+        <p>Built with Go + PostgreSQL</p>
+      </div>
+    </aside>
+
+    <main class="main-content" id="overview">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow" id="today-label">Your dashboard</p>
+          <h1>Your money, <em>in motion.</em></h1>
+        </div>
+        <button class="button button-primary" id="open-create-account" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"/></svg>
+          New account
+        </button>
+      </header>
+
+      <section class="summary-grid" aria-label="Portfolio summary">
+        <article class="balance-card">
+          <div class="balance-card-top">
+            <span>Total balance</span>
+            <span class="balance-badge">All accounts</span>
+          </div>
+          <strong class="hero-balance" id="total-balance">$0.00</strong>
+          <div class="balance-meta">
+            <span><b id="account-count">0</b> active accounts</span>
+            <span id="last-updated">Waiting for data</span>
+          </div>
+          <div class="balance-orbit orbit-one"></div>
+          <div class="balance-orbit orbit-two"></div>
+        </article>
+
+        <article class="stat-card">
+          <span class="stat-icon coral" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm1 5v2h12V8H6Zm0 5v2h7v-2H6Z"/></svg>
+          </span>
+          <div>
+            <span>Largest account</span>
+            <strong id="largest-balance">$0.00</strong>
+          </div>
+        </article>
+
+        <article class="stat-card">
+          <span class="stat-icon mint" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 1-7.1 2.9A10 10 0 0 1 12 2Zm1 5h-2v5.4l4.2 2.5 1-1.7-3.2-1.9V7Z"/></svg>
+          </span>
+          <div>
+            <span>Service status</span>
+            <strong id="service-status">Checking…</strong>
+          </div>
+        </article>
+      </section>
+
+      <div class="dashboard-grid">
+        <section class="panel accounts-panel" id="accounts">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Your portfolio</p>
+              <h2>Accounts</h2>
+            </div>
+            <button class="text-button" id="refresh-accounts" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.8-4.3L13 11h8V3l-3.3 3.3Z"/></svg>
+              Refresh
+            </button>
+          </div>
+          <div class="account-list" id="account-list" aria-live="polite">
+            <div class="empty-state loading-state">
+              <span class="loader"></span>
+              <p>Loading your accounts…</p>
+            </div>
+          </div>
+        </section>
+
+        <aside class="panel transfer-panel" id="transfer">
+          <div class="section-heading compact">
+            <div>
+              <p class="eyebrow">Move money</p>
+              <h2>Quick transfer</h2>
+            </div>
+            <span class="arrow-chip" aria-hidden="true">↗</span>
+          </div>
+
+          <form id="transfer-form" class="stack-form">
+            <label>
+              <span>From</span>
+              <select id="transfer-from" name="from_account_id" required></select>
+            </label>
+            <button class="swap-button" id="swap-accounts" type="button" aria-label="Swap source and destination accounts">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 7 3-3 1.4 1.4L11.8 6H18v2h-6.2l.6.6L11 10 8 7Zm8 10-3 3-1.4-1.4.6-.6H6v-2h6.2l-.6-.6L13 14l3 3Z"/></svg>
+            </button>
+            <label>
+              <span>To</span>
+              <select id="transfer-to" name="to_account_id" required></select>
+            </label>
+            <label>
+              <span>Amount</span>
+              <div class="money-input">
+                <b>$</b>
+                <input id="transfer-amount" name="amount" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0.00" required>
+              </div>
+            </label>
+            <p class="form-hint" id="transfer-hint">Choose two accounts to make a transfer.</p>
+            <button class="button button-dark full-width" type="submit">Send transfer</button>
+          </form>
+        </aside>
+      </div>
+
+      <section class="panel activity-panel" id="activity">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">This browser session</p>
+            <h2>Recent activity</h2>
+          </div>
+          <button class="text-button" id="clear-activity" type="button">Clear</button>
+        </div>
+        <div class="activity-list" id="activity-list">
+          <div class="empty-activity">
+            <span>◎</span>
+            <p>Your deposits, withdrawals, and transfers will appear here.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="create-account-dialog" class="modal">
+    <form method="dialog" class="modal-card" id="create-account-form">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">Start fresh</p>
+          <h2>Create an account</h2>
+        </div>
+        <button class="icon-button" value="cancel" aria-label="Close dialog" type="submit">×</button>
+      </div>
+      <label>
+        <span>Account owner</span>
+        <input id="account-owner" name="owner" type="text" maxlength="80" autocomplete="name" placeholder="e.g. Arthur Morgan" required>
+      </label>
+      <p class="form-hint">New accounts start with a $0.00 balance.</p>
+      <div class="modal-actions">
+        <button class="button button-ghost" value="cancel" type="submit">Cancel</button>
+        <button class="button button-primary" id="create-account-submit" value="default" type="submit">Create account</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="money-dialog" class="modal">
+    <form method="dialog" class="modal-card" id="money-form">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow" id="money-eyebrow">Update balance</p>
+          <h2 id="money-title">Add money</h2>
+        </div>
+        <button class="icon-button" value="cancel" aria-label="Close dialog" type="submit">×</button>
+      </div>
+      <div class="selected-account" id="selected-account"></div>
+      <label>
+        <span>Amount</span>
+        <div class="money-input large">
+          <b>$</b>
+          <input id="money-amount" name="amount" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0.00" required>
+        </div>
+      </label>
+      <div class="modal-actions">
+        <button class="button button-ghost" value="cancel" type="submit">Cancel</button>
+        <button class="button button-primary" id="money-submit" value="default" type="submit">Confirm</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
+</body>
+</html>

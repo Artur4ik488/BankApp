@@ -1,8 +1,13 @@
 package main
 
-import "context"
+import (
+	"context"
+	"sort"
+	"sync"
+)
 
 type AccountStore struct {
+	mu       sync.RWMutex
 	accounts map[int]Account
 	nextID   int
 }
@@ -23,10 +28,11 @@ func (store *AccountStore) CreateAccount(
 	ctx context.Context,
 	account Account,
 ) (Account, error) {
+	store.mu.Lock()
+	defer store.mu.Unlock()
 
 	account.ID = store.nextID
-
-	if err := store.AddAccount(ctx, account); err != nil {
+	if err := store.addAccount(account); err != nil {
 		return Account{}, err
 	}
 	return account, nil
@@ -40,9 +46,13 @@ func (store *AccountStore) AddAccount(
 	ctx context.Context,
 	account Account,
 ) error {
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	return store.addAccount(account)
+}
 
+func (store *AccountStore) addAccount(account Account) error {
 	_, ok := store.accounts[account.ID]
-
 	if ok {
 		return ErrAccountExists
 	}
@@ -62,6 +72,8 @@ func (store *AccountStore) GetAccount(
 	ctx context.Context,
 	id int,
 ) (Account, error) {
+	store.mu.RLock()
+	defer store.mu.RUnlock()
 
 	value, ok := store.accounts[id]
 
@@ -69,7 +81,20 @@ func (store *AccountStore) GetAccount(
 		return Account{}, ErrAccountNotFound
 	}
 	return value, nil
+}
 
+func (store *AccountStore) ListAccounts(ctx context.Context) ([]Account, error) {
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+
+	accounts := make([]Account, 0, len(store.accounts))
+	for _, account := range store.accounts {
+		accounts = append(accounts, account)
+	}
+	sort.Slice(accounts, func(i, j int) bool {
+		return accounts[i].ID < accounts[j].ID
+	})
+	return accounts, nil
 }
 
 // GET ACCOUNT //
@@ -80,6 +105,8 @@ func (store *AccountStore) UpdateAccount(
 	ctx context.Context,
 	account Account,
 ) error {
+	store.mu.Lock()
+	defer store.mu.Unlock()
 
 	_, ok := store.accounts[account.ID]
 
@@ -95,6 +122,8 @@ func (store *AccountStore) UpdateAccounts(
 	ctx context.Context,
 	accountFrom, accountTo Account,
 ) error {
+	store.mu.Lock()
+	defer store.mu.Unlock()
 
 	_, okFrom := store.accounts[accountFrom.ID]
 	if !okFrom {
