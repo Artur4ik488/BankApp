@@ -2,8 +2,11 @@ const state = {
   accounts: [],
   operation: null,
   accountID: null,
-  activity: JSON.parse(sessionStorage.getItem("bankapp-activity") || "[]"),
+  activity: readActivity(),
 };
+
+const MAX_MONEY_CENTS = 9_000_000_000_000_000;
+const API_TIMEOUT_MS = 10_000;
 
 const elements = {
   accountList: document.querySelector("#account-list"),
@@ -44,11 +47,36 @@ function formatMoney(cents) {
 }
 
 function amountToCents(value) {
+	const normalized = String(value).trim();
+	if (!/^\d+(\.\d{1,2})?$/.test(normalized)) {
+		throw new Error("Enter a valid amount with no more than two decimal places.");
+	}
   const amount = Number(value);
   if (!Number.isFinite(amount) || amount <= 0) {
     throw new Error("Enter an amount greater than zero.");
   }
-  return Math.round((amount + Number.EPSILON) * 100);
+	const cents = Math.round((amount + Number.EPSILON) * 100);
+	if (!Number.isSafeInteger(cents) || cents > MAX_MONEY_CENTS) {
+		throw new Error("That amount is too large.");
+	}
+	return cents;
+}
+
+function readActivity() {
+	try {
+		const activity = JSON.parse(sessionStorage.getItem("bankapp-activity") || "[]");
+		return Array.isArray(activity) ? activity.slice(0, 8) : [];
+	} catch {
+		return [];
+	}
+}
+
+function saveActivity() {
+	try {
+		sessionStorage.setItem("bankapp-activity", JSON.stringify(state.activity));
+	} catch {
+		// The dashboard remains functional when browser storage is unavailable.
+	}
 }
 
 function escapeHTML(value) {
@@ -71,13 +99,28 @@ function initials(owner) {
 }
 
 async function api(path, options = {}) {
-  const response = await fetch(path, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-  });
+  const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+	const headers = new Headers(options.headers || {});
+	if (options.body && !headers.has("Content-Type")) {
+		headers.set("Content-Type", "application/json");
+	}
+
+	let response;
+	try {
+		response = await fetch(path, {
+			...options,
+			headers,
+			signal: controller.signal,
+		});
+	} catch (error) {
+		if (error.name === "AbortError") {
+			throw new Error("The request timed out. Please try again.");
+		}
+		throw new Error("Could not reach BankApp. Check that the server is running.");
+	} finally {
+		clearTimeout(timeout);
+	}
 
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
@@ -220,14 +263,14 @@ function setBusy(button, busy, busyLabel = "Working…") {
 
 function recordActivity(type, title, detail) {
   state.activity.unshift({
-    id: crypto.randomUUID(),
+		id: globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`,
     type,
     title,
     detail,
     time: new Date().toISOString(),
   });
   state.activity = state.activity.slice(0, 8);
-  sessionStorage.setItem("bankapp-activity", JSON.stringify(state.activity));
+	saveActivity();
   renderActivity();
 }
 
@@ -367,7 +410,11 @@ document.querySelector("#swap-accounts").addEventListener("click", () => {
 
 document.querySelector("#clear-activity").addEventListener("click", () => {
   state.activity = [];
-  sessionStorage.removeItem("bankapp-activity");
+	try {
+		sessionStorage.removeItem("bankapp-activity");
+	} catch {
+		// Ignore storage restrictions; in-memory activity is already cleared.
+	}
   renderActivity();
 });
 

@@ -9,8 +9,11 @@ import (
 	"io"
 	"io/fs"
 	"log/slog"
+	"mime"
 	"net/http"
 	"strconv"
+	"strings"
+	"time"
 )
 
 //go:embed web/*
@@ -41,7 +44,14 @@ func NewHTTPHandler(service *AccountService) http.Handler {
 	return securityHeaders(mux)
 }
 
-func (api *API) health(w http.ResponseWriter, _ *http.Request) {
+func (api *API) health(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+	if err := api.service.Health(ctx); err != nil {
+		slog.Error("health check failed", "error", err)
+		writeAPIError(w, http.StatusServiceUnavailable, "service_unavailable", "account storage is unavailable")
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
@@ -58,8 +68,8 @@ func (api *API) createAccount(w http.ResponseWriter, r *http.Request) {
 	var request struct {
 		Owner string `json:"owner"`
 	}
-	if err := decodeJSON(r, &request); err != nil {
-		writeAPIError(w, http.StatusBadRequest, "invalid_request", err.Error())
+	if err := decodeJSON(w, r, &request); err != nil {
+		writeJSONDecodeError(w, err)
 		return
 	}
 
@@ -108,8 +118,8 @@ func (api *API) changeBalance(
 	var request struct {
 		Amount Money `json:"amount"`
 	}
-	if err := decodeJSON(r, &request); err != nil {
-		writeAPIError(w, http.StatusBadRequest, "invalid_request", err.Error())
+	if err := decodeJSON(w, r, &request); err != nil {
+		writeJSONDecodeError(w, err)
 		return
 	}
 
@@ -132,8 +142,8 @@ func (api *API) transfer(w http.ResponseWriter, r *http.Request) {
 		ToAccountID   int   `json:"to_account_id"`
 		Amount        Money `json:"amount"`
 	}
-	if err := decodeJSON(r, &request); err != nil {
-		writeAPIError(w, http.StatusBadRequest, "invalid_request", err.Error())
+	if err := decodeJSON(w, r, &request); err != nil {
+		writeJSONDecodeError(w, err)
 		return
 	}
 	if request.FromAccountID <= 0 || request.ToAccountID <= 0 {
@@ -174,7 +184,7 @@ func (api *API) writeError(w http.ResponseWriter, err error) {
 		writeAPIError(w, http.StatusBadRequest, "validation_error", err.Error())
 	case errors.Is(err, ErrAccountNotFound):
 		writeAPIError(w, http.StatusNotFound, "account_not_found", err.Error())
-	case errors.Is(err, ErrInsufficientFunds), errors.Is(err, ErrAccountExists):
+	case errors.Is(err, ErrInsufficientFunds), errors.Is(err, ErrAccountExists), errors.Is(err, ErrBalanceLimit):
 		writeAPIError(w, http.StatusConflict, "operation_rejected", err.Error())
 	default:
 		slog.Error("API request failed", "error", err)
@@ -190,8 +200,16 @@ func accountIDFromRequest(r *http.Request) (int, error) {
 	return accountID, nil
 }
 
-func decodeJSON(r *http.Request, target any) error {
-	decoder := json.NewDecoder(http.MaxBytesReader(nil, r.Body, 1<<20))
+var errUnsupportedMediaType = errors.New("content type must be application/json")
+
+func decodeJSON(w http.ResponseWriter, r *http.Request, target any) error {
+	contentType := strings.TrimSpace(r.Header.Get("Content-Type"))
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err != nil || mediaType != "application/json" {
+		return errUnsupportedMediaType
+	}
+
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(target); err != nil {
 		return fmt.Errorf("decode JSON: %w", err)
@@ -200,6 +218,19 @@ func decodeJSON(r *http.Request, target any) error {
 		return fmt.Errorf("request body must contain one JSON object")
 	}
 	return nil
+}
+
+func writeJSONDecodeError(w http.ResponseWriter, err error) {
+	if errors.Is(err, errUnsupportedMediaType) {
+		writeAPIError(w, http.StatusUnsupportedMediaType, "unsupported_media_type", err.Error())
+		return
+	}
+	var maxBytesError *http.MaxBytesError
+	if errors.As(err, &maxBytesError) {
+		writeAPIError(w, http.StatusRequestEntityTooLarge, "request_too_large", "request body must not exceed 1 MB")
+		return
+	}
+	writeAPIError(w, http.StatusBadRequest, "invalid_request", err.Error())
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {
@@ -225,6 +256,9 @@ func securityHeaders(next http.Handler) http.Handler {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("Referrer-Policy", "no-referrer")
+		if strings.HasPrefix(r.URL.Path, "/api/") {
+			w.Header().Set("Cache-Control", "no-store")
+		}
 		next.ServeHTTP(w, r)
 	})
 }

@@ -4,9 +4,12 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -51,9 +54,23 @@ func run(ctx context.Context) error {
 	if port == "" {
 		port = "8080"
 	}
+	portNumber, err := strconv.Atoi(port)
+	if err != nil || portNumber < 1 || portNumber > 65535 {
+		return fmt.Errorf("PORT must be a number between 1 and 65535")
+	}
+	host := strings.TrimSpace(os.Getenv("HOST"))
+	if host == "" {
+		host = "127.0.0.1"
+	}
+	address := net.JoinHostPort(host, port)
+	listener, err := net.Listen("tcp", address)
+	if err != nil {
+		return fmt.Errorf("listen on %s: %w", address, err)
+	}
+	defer listener.Close()
 
 	server := &http.Server{
-		Addr:              ":" + port,
+		Addr:              address,
 		Handler:           NewHTTPHandler(service),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
@@ -63,9 +80,9 @@ func run(ctx context.Context) error {
 
 	serverError := make(chan error, 1)
 	go func() {
-		slog.Info("BankApp is ready", "url", "http://localhost:"+port)
-		serverError <- server.ListenAndServe()
+		serverError <- server.Serve(listener)
 	}()
+	slog.Info("BankApp is ready", "url", "http://localhost:"+port)
 
 	select {
 	case err := <-serverError:

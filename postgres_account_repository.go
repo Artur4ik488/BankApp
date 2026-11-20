@@ -22,6 +22,10 @@ func NewPostgresAccountRepository(
 	}
 }
 
+func (repo *PostgresAccountRepository) Health(ctx context.Context) error {
+	return repo.pool.Ping(ctx)
+}
+
 func (repo *PostgresAccountRepository) CreateAccount(
 	ctx context.Context,
 	account Account,
@@ -116,84 +120,138 @@ func (repo *PostgresAccountRepository) ListAccounts(
 	return accounts, nil
 }
 
-func (repo *PostgresAccountRepository) UpdateAccount(
+func (repo *PostgresAccountRepository) Deposit(
 	ctx context.Context,
-	account Account,
+	accountID int,
+	amount Money,
 ) error {
+	return repo.changeBalance(ctx, accountID, func(account *Account) error {
+		return account.Deposit(amount)
+	})
+}
+
+func (repo *PostgresAccountRepository) Withdraw(
+	ctx context.Context,
+	accountID int,
+	amount Money,
+) error {
+	return repo.changeBalance(ctx, accountID, func(account *Account) error {
+		return account.Withdraw(amount)
+	})
+}
+
+func (repo *PostgresAccountRepository) changeBalance(
+	ctx context.Context,
+	accountID int,
+	change func(*Account) error,
+) error {
+	tx, err := repo.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	account, err := getAccountForUpdate(ctx, tx, accountID)
+	if err != nil {
+		return err
+	}
+	if err := change(&account); err != nil {
+		return err
+	}
+	if err := saveAccountBalance(ctx, tx, account); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+func (repo *PostgresAccountRepository) Transfer(
+	ctx context.Context,
+	fromAccountID, toAccountID int,
+	amount Money,
+) error {
+	if fromAccountID == toAccountID {
+		return ErrSameAccount
+	}
+
+	tx, err := repo.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	firstID, secondID := fromAccountID, toAccountID
+	if firstID > secondID {
+		firstID, secondID = secondID, firstID
+	}
+
+	firstAccount, err := getAccountForUpdate(ctx, tx, firstID)
+	if err != nil {
+		return err
+	}
+	secondAccount, err := getAccountForUpdate(ctx, tx, secondID)
+	if err != nil {
+		return err
+	}
+
+	accountFrom, accountTo := firstAccount, secondAccount
+	if accountFrom.ID != fromAccountID {
+		accountFrom, accountTo = secondAccount, firstAccount
+	}
+
+	if err := accountFrom.Withdraw(amount); err != nil {
+		return err
+	}
+	if err := accountTo.Deposit(amount); err != nil {
+		return err
+	}
+	if err := saveAccountBalance(ctx, tx, accountFrom); err != nil {
+		return err
+	}
+	if err := saveAccountBalance(ctx, tx, accountTo); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+func getAccountForUpdate(ctx context.Context, tx pgx.Tx, accountID int) (Account, error) {
+	var account Account
+	const query = `
+		SELECT id, owner, balance
+		FROM accounts
+		WHERE id = $1
+		FOR UPDATE
+	`
+	err := tx.QueryRow(ctx, query, accountID).Scan(
+		&account.ID,
+		&account.Owner,
+		&account.Balance,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Account{}, ErrAccountNotFound
+	}
+	if err != nil {
+		return Account{}, err
+	}
+	return account, nil
+}
+
+func saveAccountBalance(ctx context.Context, tx pgx.Tx, account Account) error {
 	const query = `
 		UPDATE accounts
-		SET owner = $1, balance = $2
-		WHERE id = $3
+		SET balance = $1
+		WHERE id = $2
 	`
-
-	result, err := repo.pool.Exec(
+	result, err := tx.Exec(
 		ctx,
 		query,
-		account.Owner,
 		account.Balance,
 		account.ID,
 	)
 	if err != nil {
 		return err
 	}
-
 	if result.RowsAffected() == 0 {
 		return ErrAccountNotFound
 	}
-
-	return nil
-}
-
-func (repo *PostgresAccountRepository) UpdateAccounts(
-	ctx context.Context,
-	accountFrom, accountTo Account,
-) error {
-	tx, err := repo.pool.Begin(ctx)
-	if err != nil {
-		return err
-	}
-
-	defer tx.Rollback(ctx)
-
-	const query = `
-		UPDATE accounts
-		SET owner = $1, balance = $2
-		WHERE id = $3
-	`
-
-	result1, err1 := tx.Exec(
-		ctx,
-		query,
-		accountFrom.Owner,
-		accountFrom.Balance,
-		accountFrom.ID,
-	)
-	if err1 != nil {
-		return err1
-	}
-
-	if result1.RowsAffected() == 0 {
-		return ErrAccountNotFound
-	}
-
-	result2, err2 := tx.Exec(
-		ctx,
-		query,
-		accountTo.Owner,
-		accountTo.Balance,
-		accountTo.ID,
-	)
-	if err2 != nil {
-		return err2
-	}
-
-	if result2.RowsAffected() == 0 {
-		return ErrAccountNotFound
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return err
-	}
-
 	return nil
 }

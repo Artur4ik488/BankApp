@@ -2,13 +2,23 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 )
+
+type unhealthyAccountRepository struct {
+	AccountRepository
+}
+
+func (unhealthyAccountRepository) Health(context.Context) error {
+	return errors.New("storage offline")
+}
 
 func TestHTTPAccountWorkflow(t *testing.T) {
 	handler := NewHTTPHandler(NewAccountService(NewAccountStore()))
@@ -138,6 +148,83 @@ func TestHTTPServesFrontend(t *testing.T) {
 	}
 	if contentType := response.Header().Get("Content-Type"); !strings.Contains(contentType, "text/html") {
 		t.Fatalf("expected HTML content type, got %q", contentType)
+	}
+}
+
+func TestHTTPHealthChecksStorage(t *testing.T) {
+	repository := unhealthyAccountRepository{AccountRepository: NewAccountStore()}
+	handler := NewHTTPHandler(NewAccountService(repository))
+
+	var response struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	doJSONRequest(t, handler, http.MethodGet, "/api/health", nil, http.StatusServiceUnavailable, &response)
+	if response.Error.Code != "service_unavailable" {
+		t.Fatalf("expected service_unavailable, got %q", response.Error.Code)
+	}
+}
+
+func TestHTTPRejectsUnsupportedContentType(t *testing.T) {
+	handler := NewHTTPHandler(NewAccountService(NewAccountStore()))
+	request := httptest.NewRequest(http.MethodPost, "/api/accounts", strings.NewReader(`{"owner":"Arthur"}`))
+	request.Header.Set("Content-Type", "text/plain")
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusUnsupportedMediaType {
+		t.Fatalf("expected status 415, got %d: %s", response.Code, response.Body.String())
+	}
+}
+
+func TestHTTPRejectsOversizedBody(t *testing.T) {
+	handler := NewHTTPHandler(NewAccountService(NewAccountStore()))
+	body := `{"owner":"` + strings.Repeat("a", (1<<20)+1) + `"}`
+	request := httptest.NewRequest(http.MethodPost, "/api/accounts", strings.NewReader(body))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("expected status 413, got %d: %s", response.Code, response.Body.String())
+	}
+}
+
+func TestHTTPRejectsBalanceOverflow(t *testing.T) {
+	store := NewAccountStore()
+	if err := store.AddAccount(context.Background(), Account{ID: 1, Owner: "Arthur", Balance: MaxMoney}); err != nil {
+		t.Fatal(err)
+	}
+	handler := NewHTTPHandler(NewAccountService(store))
+
+	var response struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	doJSONRequest(t, handler, http.MethodPost, "/api/accounts/1/deposit", map[string]any{
+		"amount": 1,
+	}, http.StatusConflict, &response)
+	if response.Error.Code != "operation_rejected" {
+		t.Fatalf("expected operation_rejected, got %q", response.Error.Code)
+	}
+}
+
+func TestHTTPSecurityAndCacheHeaders(t *testing.T) {
+	handler := NewHTTPHandler(NewAccountService(NewAccountStore()))
+	request := httptest.NewRequest(http.MethodGet, "/api/accounts", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Header().Get("Content-Security-Policy") == "" {
+		t.Fatal("expected Content-Security-Policy header")
+	}
+	if response.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("expected Cache-Control no-store, got %q", response.Header().Get("Cache-Control"))
 	}
 }
 

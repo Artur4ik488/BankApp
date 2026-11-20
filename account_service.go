@@ -3,13 +3,15 @@ package main
 import (
 	"context"
 	"strings"
-	"sync"
+	"unicode"
+	"unicode/utf8"
 )
 
 type AccountService struct {
-	mu    sync.Mutex
 	store AccountRepository
 }
+
+const MaxOwnerLength = 80
 
 func NewAccountService(store AccountRepository) *AccountService {
 	return &AccountService{
@@ -22,7 +24,7 @@ func (service *AccountService) CreateAccount(
 	owner string,
 ) (Account, error) {
 	owner = strings.TrimSpace(owner)
-	if owner == "" {
+	if owner == "" || utf8.RuneCountInString(owner) > MaxOwnerLength || strings.IndexFunc(owner, unicode.IsControl) >= 0 {
 		return Account{}, ErrInvalidOwner
 	}
 
@@ -32,6 +34,10 @@ func (service *AccountService) CreateAccount(
 	}
 
 	return service.store.CreateAccount(ctx, account)
+}
+
+func (service *AccountService) Health(ctx context.Context) error {
+	return service.store.Health(ctx)
 }
 
 func (service *AccountService) ListAccounts(ctx context.Context) ([]Account, error) {
@@ -50,22 +56,10 @@ func (service *AccountService) Deposit(
 	accountID int,
 	amount Money,
 ) error {
-	service.mu.Lock()
-	defer service.mu.Unlock()
-
-	account, err := service.store.GetAccount(ctx, accountID)
-	if err != nil {
-		return err
+	if amount <= 0 {
+		return ErrInvalidAmount
 	}
-
-	if err := account.Deposit(amount); err != nil {
-		return err
-	}
-
-	if err := service.store.UpdateAccount(ctx, account); err != nil {
-		return err
-	}
-	return nil
+	return service.store.Deposit(ctx, accountID, amount)
 }
 
 func (service *AccountService) Withdraw(
@@ -73,22 +67,10 @@ func (service *AccountService) Withdraw(
 	accountID int,
 	amount Money,
 ) error {
-	service.mu.Lock()
-	defer service.mu.Unlock()
-
-	account, err := service.store.GetAccount(ctx, accountID)
-	if err != nil {
-		return err
+	if amount <= 0 {
+		return ErrInvalidAmount
 	}
-
-	if err := account.Withdraw(amount); err != nil {
-		return err
-	}
-
-	if err := service.store.UpdateAccount(ctx, account); err != nil {
-		return err
-	}
-	return nil
+	return service.store.Withdraw(ctx, accountID, amount)
 }
 
 func (service *AccountService) Transfer(
@@ -96,32 +78,11 @@ func (service *AccountService) Transfer(
 	fromAccountID, toAccountID int,
 	amount Money,
 ) error {
-	service.mu.Lock()
-	defer service.mu.Unlock()
-
 	if fromAccountID == toAccountID {
 		return ErrSameAccount
 	}
-
-	accountFrom, err := service.store.GetAccount(ctx, fromAccountID)
-	if err != nil {
-		return err
+	if amount <= 0 {
+		return ErrInvalidAmount
 	}
-	accountTo, err := service.store.GetAccount(ctx, toAccountID)
-	if err != nil {
-		return err
-	}
-
-	if err := accountFrom.Withdraw(amount); err != nil {
-		return err
-	}
-
-	if err := accountTo.Deposit(amount); err != nil {
-		return err
-	}
-
-	if err := service.store.UpdateAccounts(ctx, accountFrom, accountTo); err != nil {
-		return err
-	}
-	return nil
+	return service.store.Transfer(ctx, fromAccountID, toAccountID, amount)
 }

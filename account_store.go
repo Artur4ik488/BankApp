@@ -22,12 +22,17 @@ func NewAccountStore() *AccountStore {
 	}
 }
 
-// CREAETE ACCOUNT //
+func (store *AccountStore) Health(ctx context.Context) error {
+	return ctx.Err()
+}
 
 func (store *AccountStore) CreateAccount(
 	ctx context.Context,
 	account Account,
 ) (Account, error) {
+	if err := ctx.Err(); err != nil {
+		return Account{}, err
+	}
 	store.mu.Lock()
 	defer store.mu.Unlock()
 
@@ -38,14 +43,13 @@ func (store *AccountStore) CreateAccount(
 	return account, nil
 }
 
-// CREAETE ACCOUNT //
-
-// ADD ACCOUNT //
-
 func (store *AccountStore) AddAccount(
 	ctx context.Context,
 	account Account,
 ) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	store.mu.Lock()
 	defer store.mu.Unlock()
 	return store.addAccount(account)
@@ -63,15 +67,13 @@ func (store *AccountStore) addAccount(account Account) error {
 	}
 	return nil
 }
-
-// ADD ACCOUNT //
-
-// GET ACCOUNT //
-
 func (store *AccountStore) GetAccount(
 	ctx context.Context,
 	id int,
 ) (Account, error) {
+	if err := ctx.Err(); err != nil {
+		return Account{}, err
+	}
 	store.mu.RLock()
 	defer store.mu.RUnlock()
 
@@ -84,6 +86,9 @@ func (store *AccountStore) GetAccount(
 }
 
 func (store *AccountStore) ListAccounts(ctx context.Context) ([]Account, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	store.mu.RLock()
 	defer store.mu.RUnlock()
 
@@ -97,47 +102,81 @@ func (store *AccountStore) ListAccounts(ctx context.Context) ([]Account, error) 
 	return accounts, nil
 }
 
-// GET ACCOUNT //
-
-// UPDATE //
-
-func (store *AccountStore) UpdateAccount(
+func (store *AccountStore) Deposit(
 	ctx context.Context,
-	account Account,
+	accountID int,
+	amount Money,
 ) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	store.mu.Lock()
 	defer store.mu.Unlock()
 
-	_, ok := store.accounts[account.ID]
-
+	account, ok := store.accounts[accountID]
 	if !ok {
 		return ErrAccountNotFound
 	}
-
-	store.accounts[account.ID] = account
+	if err := account.Deposit(amount); err != nil {
+		return err
+	}
+	store.accounts[accountID] = account
 	return nil
 }
 
-func (store *AccountStore) UpdateAccounts(
+func (store *AccountStore) Withdraw(
 	ctx context.Context,
-	accountFrom, accountTo Account,
+	accountID int,
+	amount Money,
 ) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	store.mu.Lock()
 	defer store.mu.Unlock()
 
-	_, okFrom := store.accounts[accountFrom.ID]
-	if !okFrom {
+	account, ok := store.accounts[accountID]
+	if !ok {
 		return ErrAccountNotFound
 	}
-	_, okTo := store.accounts[accountTo.ID]
-	if !okTo {
-		return ErrAccountNotFound
+	if err := account.Withdraw(amount); err != nil {
+		return err
 	}
-
-	store.accounts[accountFrom.ID] = accountFrom
-	store.accounts[accountTo.ID] = accountTo
+	store.accounts[accountID] = account
 	return nil
-
 }
 
-// UPDATE //
+func (store *AccountStore) Transfer(
+	ctx context.Context,
+	fromAccountID, toAccountID int,
+	amount Money,
+) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if fromAccountID == toAccountID {
+		return ErrSameAccount
+	}
+
+	store.mu.Lock()
+	defer store.mu.Unlock()
+
+	accountFrom, ok := store.accounts[fromAccountID]
+	if !ok {
+		return ErrAccountNotFound
+	}
+	accountTo, ok := store.accounts[toAccountID]
+	if !ok {
+		return ErrAccountNotFound
+	}
+	if err := accountFrom.Withdraw(amount); err != nil {
+		return err
+	}
+	if err := accountTo.Deposit(amount); err != nil {
+		return err
+	}
+
+	store.accounts[fromAccountID] = accountFrom
+	store.accounts[toAccountID] = accountTo
+	return nil
+}

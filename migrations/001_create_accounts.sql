@@ -1,4 +1,4 @@
-CREATE TABLE accounts (
+CREATE TABLE IF NOT EXISTS accounts (
     id BIGSERIAL PRIMARY KEY,
     owner TEXT NOT NULL,
     balance BIGINT NOT NULL DEFAULT 0 CHECK(balance >= 0),

@@ -10,7 +10,7 @@ Requirements: Go, Docker, and Docker Compose.
 
 ```sh
 test -f .env || cp .env.example .env
-docker compose up -d
+docker compose up -d --wait
 set -a
 source .env
 set +a
@@ -18,6 +18,8 @@ go run .
 ```
 
 BankApp builds its connection URL from `POSTGRES_DB`, `POSTGRES_USER`, and `POSTGRES_PASSWORD`. `POSTGRES_HOST` and `POSTGRES_PORT` default to `localhost` and `5433`. A standalone `DATABASE_URL` is also supported when those PostgreSQL variables are not set.
+
+The application listens on `127.0.0.1:8080` by default. Set `HOST` or `PORT` to override either value.
 
 On a fresh PostgreSQL data directory, Docker runs the SQL file in `migrations/` automatically. Open [http://localhost:8080](http://localhost:8080) after the application starts.
 
@@ -52,6 +54,13 @@ The in-memory mode resets all accounts when the application stops.
 | `POST` | `/api/transfers` | Transfer between accounts |
 
 API amounts are integer cents. For example, `2500` represents `$25.00`.
+
+## Troubleshooting
+
+- **Port already in use:** stop the previous BankApp process with `Ctrl+C`, or run `PORT=8081 go run .`.
+- **Database authentication failed:** update `POSTGRES_PASSWORD` in `.env`. Existing PostgreSQL data directories keep the password used when they were first created.
+- **Database is unavailable:** run `docker compose up -d --wait` and confirm that `docker compose ps` reports PostgreSQL as healthy.
+- **Temporary demo:** run `BANKAPP_STORE=memory go run .` to use BankApp without PostgreSQL. Data is cleared when the process stops.
 
 ## Test
 
