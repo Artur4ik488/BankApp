@@ -24,7 +24,7 @@ func TestSuccessfulDeposit(t *testing.T) {
 		t.Fatalf("failed to add account: %v", err)
 	}
 
-	if err := service.Deposit(ctx, 1, 100_00); err != nil {
+	if _, err := service.Deposit(ctx, 1, 100_00); err != nil {
 		t.Fatalf("deposit failed: %v", err)
 	}
 
@@ -44,7 +44,7 @@ func TestDepositAccountNotFound(t *testing.T) {
 
 	ctx := context.Background()
 
-	err := service.Deposit(ctx, 999, 100_00)
+	_, err := service.Deposit(ctx, 999, 100_00)
 
 	if !errors.Is(err, ErrAccountNotFound) {
 		t.Fatalf("expected ErrAccountNotFound, got %v", err)
@@ -67,7 +67,7 @@ func TestInvalidDeposit(t *testing.T) {
 		t.Fatalf("failed to add account: %v", err)
 	}
 
-	err := service.Deposit(ctx, 1, -100_00)
+	_, err := service.Deposit(ctx, 1, -100_00)
 
 	if !errors.Is(err, ErrInvalidAmount) {
 		t.Fatalf("expected ErrInvalidAmount, got %v", err)
@@ -101,7 +101,7 @@ func TestSuccessfulWithdraw(t *testing.T) {
 		t.Fatalf("failed to add account: %v", err)
 	}
 
-	if err := service.Withdraw(ctx, 1, 100_00); err != nil {
+	if _, err := service.Withdraw(ctx, 1, 100_00); err != nil {
 		t.Fatalf("withdraw failed: %v", err)
 	}
 
@@ -131,7 +131,7 @@ func TestWithdrawInsufficientFunds(t *testing.T) {
 		t.Fatalf("failed to add account: %v", err)
 	}
 
-	err := service.Withdraw(ctx, 1, 200_00)
+	_, err := service.Withdraw(ctx, 1, 200_00)
 
 	if !errors.Is(err, ErrInsufficientFunds) {
 		t.Fatalf("expected ErrInsufficientFunds, got %v", err)
@@ -163,7 +163,7 @@ func TestInvalidWithdraw(t *testing.T) {
 		t.Fatalf("failed to add account: %v", err)
 	}
 
-	err := service.Withdraw(ctx, 1, -100_00)
+	_, err := service.Withdraw(ctx, 1, -100_00)
 
 	if !errors.Is(err, ErrInvalidAmount) {
 		t.Fatalf("expected ErrInvalidAmount, got %v", err)
@@ -185,7 +185,7 @@ func TestWithdrawAccountNotFound(t *testing.T) {
 
 	ctx := context.Background()
 
-	err := service.Withdraw(ctx, 999, 100_00)
+	_, err := service.Withdraw(ctx, 999, 100_00)
 
 	if !errors.Is(err, ErrAccountNotFound) {
 		t.Fatalf("expected ErrAccountNotFound, got %v", err)
@@ -220,7 +220,7 @@ func TestSuccessfulTransfer(t *testing.T) {
 		t.Fatalf("failed to add destination account: %v", err)
 	}
 
-	if err := service.Transfer(ctx, 1, 2, 5000); err != nil {
+	if _, _, err := service.Transfer(ctx, 1, 2, 5000); err != nil {
 		t.Fatalf("transfer failed: %v", err)
 	}
 
@@ -249,7 +249,7 @@ func TestTransferSameAccount(t *testing.T) {
 
 	ctx := context.Background()
 
-	err := service.Transfer(ctx, 1, 1, 100_00)
+	_, _, err := service.Transfer(ctx, 1, 1, 100_00)
 
 	if !errors.Is(err, ErrSameAccount) {
 		t.Fatalf("expected ErrSameAccount, got %v", err)
@@ -272,7 +272,7 @@ func TestTransferSourceAccountNotFound(t *testing.T) {
 		t.Fatalf("failed to add destination account: %v", err)
 	}
 
-	err := service.Transfer(ctx, 1, 2, 50_00)
+	_, _, err := service.Transfer(ctx, 1, 2, 50_00)
 
 	if !errors.Is(err, ErrAccountNotFound) {
 		t.Fatalf("expected ErrAccountNotFound, got %v", err)
@@ -295,7 +295,7 @@ func TestTransferDestinationAccountNotFound(t *testing.T) {
 		t.Fatalf("failed to add source account: %v", err)
 	}
 
-	err := service.Transfer(ctx, 1, 2, 50_00)
+	_, _, err := service.Transfer(ctx, 1, 2, 50_00)
 
 	if !errors.Is(err, ErrAccountNotFound) {
 		t.Fatalf("expected ErrAccountNotFound, got %v", err)
@@ -328,7 +328,7 @@ func TestTransferInsufficientFunds(t *testing.T) {
 		t.Fatalf("failed to add destination account: %v", err)
 	}
 
-	err := service.Transfer(ctx, 1, 2, 100_00)
+	_, _, err := service.Transfer(ctx, 1, 2, 100_00)
 
 	if !errors.Is(err, ErrInsufficientFunds) {
 		t.Fatalf("expected ErrInsufficientFunds, got %v", err)
@@ -379,7 +379,7 @@ func TestTransferInvalidAmount(t *testing.T) {
 		t.Fatalf("failed to add destination account: %v", err)
 	}
 
-	err := service.Transfer(ctx, 1, 2, -50_00)
+	_, _, err := service.Transfer(ctx, 1, 2, -50_00)
 
 	if !errors.Is(err, ErrInvalidAmount) {
 		t.Fatalf("expected ErrInvalidAmount, got %v", err)

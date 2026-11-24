@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: bankapp_test
+          POSTGRES_USER: bankapp_test
+          POSTGRES_PASSWORD: bankapp_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bankapp_test -d bankapp_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      TEST_DATABASE_URL: postgres://bankapp_test:bankapp_test@localhost:5432/bankapp_test?sslmode=disable
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run tests
+        run: go test ./...
+
+      - name: Run race detector
+        run: go test -race ./...
+
+      - name: Run vet
+        run: go vet ./...

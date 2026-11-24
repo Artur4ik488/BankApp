@@ -124,7 +124,7 @@ func (repo *PostgresAccountRepository) Deposit(
 	ctx context.Context,
 	accountID int,
 	amount Money,
-) error {
+) (Account, error) {
 	return repo.changeBalance(ctx, accountID, func(account *Account) error {
 		return account.Deposit(amount)
 	})
@@ -134,7 +134,7 @@ func (repo *PostgresAccountRepository) Withdraw(
 	ctx context.Context,
 	accountID int,
 	amount Money,
-) error {
+) (Account, error) {
 	return repo.changeBalance(ctx, accountID, func(account *Account) error {
 		return account.Withdraw(amount)
 	})
@@ -144,38 +144,41 @@ func (repo *PostgresAccountRepository) changeBalance(
 	ctx context.Context,
 	accountID int,
 	change func(*Account) error,
-) error {
+) (Account, error) {
 	tx, err := repo.pool.Begin(ctx)
 	if err != nil {
-		return err
+		return Account{}, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	account, err := getAccountForUpdate(ctx, tx, accountID)
 	if err != nil {
-		return err
+		return Account{}, err
 	}
 	if err := change(&account); err != nil {
-		return err
+		return Account{}, err
 	}
 	if err := saveAccountBalance(ctx, tx, account); err != nil {
-		return err
+		return Account{}, err
 	}
-	return tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return Account{}, err
+	}
+	return account, nil
 }
 
 func (repo *PostgresAccountRepository) Transfer(
 	ctx context.Context,
 	fromAccountID, toAccountID int,
 	amount Money,
-) error {
+) (Account, Account, error) {
 	if fromAccountID == toAccountID {
-		return ErrSameAccount
+		return Account{}, Account{}, ErrSameAccount
 	}
 
 	tx, err := repo.pool.Begin(ctx)
 	if err != nil {
-		return err
+		return Account{}, Account{}, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
@@ -186,11 +189,11 @@ func (repo *PostgresAccountRepository) Transfer(
 
 	firstAccount, err := getAccountForUpdate(ctx, tx, firstID)
 	if err != nil {
-		return err
+		return Account{}, Account{}, err
 	}
 	secondAccount, err := getAccountForUpdate(ctx, tx, secondID)
 	if err != nil {
-		return err
+		return Account{}, Account{}, err
 	}
 
 	accountFrom, accountTo := firstAccount, secondAccount
@@ -199,18 +202,21 @@ func (repo *PostgresAccountRepository) Transfer(
 	}
 
 	if err := accountFrom.Withdraw(amount); err != nil {
-		return err
+		return Account{}, Account{}, err
 	}
 	if err := accountTo.Deposit(amount); err != nil {
-		return err
+		return Account{}, Account{}, err
 	}
 	if err := saveAccountBalance(ctx, tx, accountFrom); err != nil {
-		return err
+		return Account{}, Account{}, err
 	}
 	if err := saveAccountBalance(ctx, tx, accountTo); err != nil {
-		return err
+		return Account{}, Account{}, err
 	}
-	return tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return Account{}, Account{}, err
+	}
+	return accountFrom, accountTo, nil
 }
 
 func getAccountForUpdate(ctx context.Context, tx pgx.Tx, accountID int) (Account, error) {

@@ -33,7 +33,7 @@ func TestTransferRollsBackWhenDestinationHitsBalanceLimit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err := service.Transfer(ctx, 1, 2, 50)
+	_, _, err := service.Transfer(ctx, 1, 2, 50)
 	if !errors.Is(err, ErrBalanceLimit) {
 		t.Fatalf("expected ErrBalanceLimit, got %v", err)
 	}
@@ -69,7 +69,7 @@ func TestConcurrentDepositsAreNotLost(t *testing.T) {
 		go func() {
 			defer waitGroup.Done()
 			for range depositsPerWorker {
-				if err := service.Deposit(ctx, 1, 1); err != nil {
+				if _, err := service.Deposit(ctx, 1, 1); err != nil {
 					errorsChannel <- err
 					return
 				}

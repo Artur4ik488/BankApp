@@ -106,56 +106,56 @@ func (store *AccountStore) Deposit(
 	ctx context.Context,
 	accountID int,
 	amount Money,
-) error {
+) (Account, error) {
 	if err := ctx.Err(); err != nil {
-		return err
+		return Account{}, err
 	}
 	store.mu.Lock()
 	defer store.mu.Unlock()
 
 	account, ok := store.accounts[accountID]
 	if !ok {
-		return ErrAccountNotFound
+		return Account{}, ErrAccountNotFound
 	}
 	if err := account.Deposit(amount); err != nil {
-		return err
+		return Account{}, err
 	}
 	store.accounts[accountID] = account
-	return nil
+	return account, nil
 }
 
 func (store *AccountStore) Withdraw(
 	ctx context.Context,
 	accountID int,
 	amount Money,
-) error {
+) (Account, error) {
 	if err := ctx.Err(); err != nil {
-		return err
+		return Account{}, err
 	}
 	store.mu.Lock()
 	defer store.mu.Unlock()
 
 	account, ok := store.accounts[accountID]
 	if !ok {
-		return ErrAccountNotFound
+		return Account{}, ErrAccountNotFound
 	}
 	if err := account.Withdraw(amount); err != nil {
-		return err
+		return Account{}, err
 	}
 	store.accounts[accountID] = account
-	return nil
+	return account, nil
 }
 
 func (store *AccountStore) Transfer(
 	ctx context.Context,
 	fromAccountID, toAccountID int,
 	amount Money,
-) error {
+) (Account, Account, error) {
 	if err := ctx.Err(); err != nil {
-		return err
+		return Account{}, Account{}, err
 	}
 	if fromAccountID == toAccountID {
-		return ErrSameAccount
+		return Account{}, Account{}, ErrSameAccount
 	}
 
 	store.mu.Lock()
@@ -163,20 +163,20 @@ func (store *AccountStore) Transfer(
 
 	accountFrom, ok := store.accounts[fromAccountID]
 	if !ok {
-		return ErrAccountNotFound
+		return Account{}, Account{}, ErrAccountNotFound
 	}
 	accountTo, ok := store.accounts[toAccountID]
 	if !ok {
-		return ErrAccountNotFound
+		return Account{}, Account{}, ErrAccountNotFound
 	}
 	if err := accountFrom.Withdraw(amount); err != nil {
-		return err
+		return Account{}, Account{}, err
 	}
 	if err := accountTo.Deposit(amount); err != nil {
-		return err
+		return Account{}, Account{}, err
 	}
 
 	store.accounts[fromAccountID] = accountFrom
 	store.accounts[toAccountID] = accountTo
-	return nil
+	return accountFrom, accountTo, nil
 }

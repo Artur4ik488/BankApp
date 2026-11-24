@@ -107,7 +107,7 @@ func (api *API) withdraw(w http.ResponseWriter, r *http.Request) {
 func (api *API) changeBalance(
 	w http.ResponseWriter,
 	r *http.Request,
-	change func(context.Context, int, Money) error,
+	change func(context.Context, int, Money) (Account, error),
 ) {
 	accountID, err := accountIDFromRequest(r)
 	if err != nil {
@@ -123,12 +123,7 @@ func (api *API) changeBalance(
 		return
 	}
 
-	if err := change(r.Context(), accountID, request.Amount); err != nil {
-		api.writeError(w, err)
-		return
-	}
-
-	account, err := api.service.GetAccount(r.Context(), accountID)
+	account, err := change(r.Context(), accountID, request.Amount)
 	if err != nil {
 		api.writeError(w, err)
 		return
@@ -151,22 +146,12 @@ func (api *API) transfer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := api.service.Transfer(
+	fromAccount, toAccount, err := api.service.Transfer(
 		r.Context(),
 		request.FromAccountID,
 		request.ToAccountID,
 		request.Amount,
-	); err != nil {
-		api.writeError(w, err)
-		return
-	}
-
-	fromAccount, err := api.service.GetAccount(r.Context(), request.FromAccountID)
-	if err != nil {
-		api.writeError(w, err)
-		return
-	}
-	toAccount, err := api.service.GetAccount(r.Context(), request.ToAccountID)
+	)
 	if err != nil {
 		api.writeError(w, err)
 		return

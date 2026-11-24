@@ -55,9 +55,9 @@ func (service *AccountService) Deposit(
 	ctx context.Context,
 	accountID int,
 	amount Money,
-) error {
+) (Account, error) {
 	if amount <= 0 {
-		return ErrInvalidAmount
+		return Account{}, ErrInvalidAmount
 	}
 	return service.store.Deposit(ctx, accountID, amount)
 }
@@ -66,9 +66,9 @@ func (service *AccountService) Withdraw(
 	ctx context.Context,
 	accountID int,
 	amount Money,
-) error {
+) (Account, error) {
 	if amount <= 0 {
-		return ErrInvalidAmount
+		return Account{}, ErrInvalidAmount
 	}
 	return service.store.Withdraw(ctx, accountID, amount)
 }
@@ -77,12 +77,12 @@ func (service *AccountService) Transfer(
 	ctx context.Context,
 	fromAccountID, toAccountID int,
 	amount Money,
-) error {
+) (Account, Account, error) {
 	if fromAccountID == toAccountID {
-		return ErrSameAccount
+		return Account{}, Account{}, ErrSameAccount
 	}
 	if amount <= 0 {
-		return ErrInvalidAmount
+		return Account{}, Account{}, ErrInvalidAmount
 	}
 	return service.store.Transfer(ctx, fromAccountID, toAccountID, amount)
 }

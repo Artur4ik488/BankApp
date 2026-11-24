@@ -2,6 +2,8 @@
 
 BankApp is a small full-stack banking dashboard built with Go, PostgreSQL, and plain HTML/CSS/JavaScript. It supports account creation, deposits, withdrawals, and atomic transfers through a service and repository architecture.
 
+> BankApp is an educational project demonstrating Go backend architecture, PostgreSQL transactions, concurrency control, and HTTP API development. It does not implement authentication, authorization, or a complete financial ledger and should not be used in production.
+
 Money is stored as an integer number of cents. For example, `25_00` in Go means 2,500 cents, or 25.00 in the chosen currency.
 
 ## Run the application
@@ -69,3 +71,5 @@ go test ./...
 go test -race ./...
 go vet ./...
 ```
+
+PostgreSQL integration tests run when `TEST_DATABASE_URL` is set and otherwise skip automatically. GitHub Actions supplies a dedicated PostgreSQL service and runs the complete integration suite.
